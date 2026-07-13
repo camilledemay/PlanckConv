@@ -1,0 +1,13 @@
+[project]
+name = "planckconv"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "pixell>=0.31.10",
+    "smarties",
+]
+
+[tool.uv.sources]
+smarties = { git = "https://github.com/camilledemay/smarties-beam-convolution" }

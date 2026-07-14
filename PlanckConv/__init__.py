@@ -1,2 +1,2 @@
 from PlanckConv.core_functions import *
-from PlanckConv.external import *
+from PlanckConv.external_qp_planck import *

@@ -1,24 +1,28 @@
 #!/usr/bin/env python
 """Core functions for Smarties map-making and QuickPol beam matrices."""
-from cmath import polar
-from PlanckConv import list_planck, load_RIMO, detector_weights
-from astropy.units import a
 
 import os
-import sys
 import time
-from itertools import product
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import healpy as hp
 import numpy as np
 import smarties.systematics.beam_convolution as sm_beam_conv
-from astropy.io import fits
 from smarties.hn import Spin_maps
 from smarties.mapmaking import FrameworkSystematics
+from smarties.systematics.beam_convolution import convert_alm_spin_to_plusminus
 from smarties.tools import transform_array_maps_into_spin_maps
-from PlanckConv.external import get_angles
-from PlanckConv.external import get_blms_fits
+
+from PlanckConv.external_qp_planck import (
+    detector_weights,
+    get_angles,
+    get_blms_fits,
+    list_planck,
+    load_RIMO,
+)
+
 # ----------------------------------------------------------------------
 # Load Planck hit‑map moments and build spin maps
 
@@ -26,7 +30,7 @@ from PlanckConv.external import get_blms_fits
 def load_hmap_planck_1_det(
     path_to_moments, det_name, smax, spin_ref, RIMO, dtype=np.complex128
 ):
-    """Load spin moment maps for one detector and apply angle correction."""
+    """Load the Planck h-maps of one detector and rotate it so that they follow the same conventiona as smarties."""
     hitfile = os.path.join(path_to_moments, f"polmoments_{det_name}_hits.fits")
     momfile = os.path.join(path_to_moments, f"polmoments_{det_name}.fits")
 
@@ -53,10 +57,10 @@ def load_hmap_planck_1_det(
     return h_maps
 
 
-def build_h_maps_dictionnary(
+def build_Planck_h_maps_dictionnary(
     det_names, moments_dir, smax, spin_ref, RIMO, dtype, detector_weights
 ):
-    """Load all detectors and build h_n_spin_dict and total hits mask."""
+    """Load all detectors and build h_n_spin_dict up to a spin smax."""
     h_maps_list = []
     hits_list = []
     for det in det_names:
@@ -103,7 +107,7 @@ def generate_cmb_alms(
     lmax,
     apply_pixel_window=False,
 ):
-    """Generate CMB alms from cl file"""
+    """Generate CMB alms from a Cl"""
     np.random.seed(seed_cmb)
 
     alms_dict = {}
@@ -112,22 +116,29 @@ def generate_cmb_alms(
         if apply_pixel_window:
             match cls.shape:
                 case (1,):
-                    cls *= hp.pixwin(nside, lmax=lmax, pol=False)**2
+                    cls *= hp.pixwin(nside, lmax=lmax, pol=False) ** 2
                 case (3,):
-                    cls *= hp.pixwin(nside, lmax=lmax, pol=True)**2
-        alms = hp.synalm(cls, nside, lmax=lmax, verbose=False)
+                    cls *= hp.pixwin(nside, lmax=lmax, pol=True) ** 2
+        alms = hp.synalm(cls=cls, lmax=lmax, verbose=False, new=True)
 
         if alms.shape[0] == 1:
             print("Alms only contain temperature, padding polarization with zeros")
             alms = np.atleast_2d(alms)
-            alms = np.pad(alms, ((0, 2), (0, 0)), mode='constant', constant_values=0)
+            alms = np.pad(alms, ((0, 2), (0, 0)), mode="constant", constant_values=0)
         if not polarized:
             alms[1] *= 0
             alms[2] *= 0
         if apply_pixel_window:
-            alms *= hp.pixwin(nside, lmax=lmax, pol=True)
+            apply_pixwin(alms, nside, lmax)
         alms_dict[det] = alms
     return alms_dict
+
+
+def apply_pixwin(alms, nside, lmax):
+    Twindow, Pwindow = hp.pixwin(nside, lmax=lmax, pol=True)
+    hp.almxfl(alms[0], Twindow, inplace=True)
+    hp.almxfl(alms[1], Pwindow, inplace=True)
+    hp.almxfl(alms[2], Pwindow, inplace=True)
 
 
 # ----------------------------------------------------------------------
@@ -170,7 +181,8 @@ def run_smarties_mapmaking(
     spin_systematics_maps,
     lmax,
     pol_ang_rad,
-    smarties_pol_rotation,
+    inverse_mapmaking_matrix,
+    return_inverse_mapmaking_matrix,
     condition_number_mask,
     condition_number_threshold=10,
 ):
@@ -178,16 +190,22 @@ def run_smarties_mapmaking(
     syst = FrameworkSystematics(
         map_shape=(1, mask_hits.size), nstokes=3, lmax=lmax, list_spin_output=[0, -2, 2]
     )
-    final_spin_maps, inverse_mapmaking_matrix = syst.compute_total_maps(
+    out = syst.compute_total_maps(
         mask_hits,
         h_n_spin_dict,
         spin_sky_maps,
         spin_systematics_maps,
         return_Q_U=False,
-        return_inverse_mapmaking_matrix=True,
+        inverse_mapmaking_matrix=inverse_mapmaking_matrix,
+        return_inverse_mapmaking_matrix=return_inverse_mapmaking_matrix or condition_number_mask,
         mask_input=False,
-        polar_angle=pol_ang_rad if smarties_pol_rotation else None,
+        polar_angle=pol_ang_rad,
     )
+    if return_inverse_mapmaking_matrix or condition_number_mask:
+        final_spin_maps, inverse_mapmaking_matrix = out
+    else:
+        final_spin_maps = out
+
     final_I = final_spin_maps[0].real
     final_Q = ((final_spin_maps[-2] + final_spin_maps[2]) / 2).real
     final_U = (1j * (final_spin_maps[-2] - final_spin_maps[2]) / 2).real
@@ -213,82 +231,13 @@ def run_smarties_mapmaking(
     tqu[1, full_mask] = final_Q[full_mask]
     tqu[2, full_mask] = final_U[full_mask]
 
-    return tqu, inverse_mapmaking_matrix
-
-
-
-def get_detnames(detpair):
-    if detpair == ("100GHz", "100GHz"):
-        det_names = [
-            "100-1a",
-            "100-1b",
-            "100-2a",
-            "100-2b",
-            "100-3a",
-            "100-3b",
-            "100-4a",
-            "100-4b",
-        ]
-    elif detpair == ("100A", "100A"):
-        det_names = [
-            "100-1a",
-            "100-1b",
-            "100-4a",
-            "100-4b",
-        ]
-    elif detpair == ("100B", "100B"):
-        det_names = [
-            "100-2a",
-            "100-2b",
-            "100-3a",
-            "100-3b",
-        ]
-    elif detpair == ("100C", "100C"):
-        det_names = [
-            "100-1a",
-            "100-1b",
-            "100-2a",
-            "100-2b",
-        ]
-    elif detpair == ("100D", "100D"):
-        det_names = [
-            "100-1a",
-            "100-1b",
-        ]
-    elif detpair == ("70GHz", "70GHz"):
-        det_names = [
-            "LFI18M",
-            "LFI18S",
-            "LFI19M",
-            "LFI19S",
-            "LFI20S",
-            "LFI20M",
-            "LFI21S",
-            "LFI21M",
-            "LFI22S",
-            "LFI22M",
-            "LFI23S",
-            "LFI23M",
-        ]
-    elif detpair == ("70A", "70A"):
-        det_names = [
-            "LFI18M",
-            "LFI18S",
-            "LFI20S",
-            "LFI20M",
-            "LFI23S",
-            "LFI23M",
-        ]
-    elif detpair == ("100-1a", "100-1a"):
-        det_names = [
-            "100-1a",
-        ]
+    if return_inverse_mapmaking_matrix:
+        return tqu, inverse_mapmaking_matrix
     else:
-        raise ValueError(f"Unknown detpair: {detpair}")
-    return det_names
+        return tqu
 
 
-def get_blms(
+def get_Planck_det_blms(
     det_names,
     path_to_beams,
     lmax,
@@ -296,11 +245,11 @@ def get_blms(
     pol_ang_rad,
     polarisation_efficiencies,
 ):
-    blms_dict={}
+    blms_dict = {}
     for idet, det in enumerate(det_names):
         polarisation_efficiency = polarisation_efficiencies[idet]
         beam_path = os.path.join(path_to_beams, f"blm_{det}.fits")
-        blms = load_blms_copolar(
+        blms = load_Planck_blms_copolar(
             beam_path,
             lmax=lmax,
             mmax=mmax_beam,
@@ -308,38 +257,39 @@ def get_blms(
             renorm=True,
             polang=pol_ang_rad[idet],
         )
-        blms.values *= 1 / np.sqrt(
-            4 * np.pi
-        )  # renormalize to match smarties convention
-        blms.values[1:] *= polarisation_efficiency
-        blms_dict[det] = blms.values
+        blms *= 1 / np.sqrt(4 * np.pi)  # renormalize to match smarties convention
+        blms[1:] *= polarisation_efficiency
+        blms_dict[det] = blms
 
     return blms_dict
 
-def blms_to_hp_format(blms, lmax, mmax):
-    blms_output=np.zeros((3, hp.Alm.getsize(lmax, mmax)), dtype=np.complex128)
-    for l in range(lmax + 1):
-            for m in range(min(l, mmax) + 1):
-                idx_m = hp.Alm.getidx(lmax, l, m)
-                blms_output[0, idx_m] = blms[l, m, 0]
 
-                blms_output[1, idx_m] = blms[l,m,1]
-                blms_output[2, idx_m] = blms[l,m,2]
-    blms_output[1],blms_output[2] = convert_alm_spin_to_plusminus(blms_output[1].copy(), blms_output[2].copy() , spin=2)
+def convert_Planck_blms_to_hp_format(blms, lmax, mmax):
+    blms_output = np.zeros((3, hp.Alm.getsize(lmax, mmax)), dtype=np.complex128)
+    for l in range(lmax + 1):
+        for m in range(min(l, mmax) + 1):
+            idx_m = hp.Alm.getidx(lmax, l, m)
+            blms_output[0, idx_m] = blms[l, m, 0]
+            blms_output[1, idx_m] = blms[l, m, 1]
+            blms_output[2, idx_m] = blms[l, m, 2]
+    blms_output[1], blms_output[2] = convert_alm_spin_to_plusminus(
+        blms_output[1].copy(), blms_output[2].copy(), spin=2
+    )
     return blms_output
 
-def load_blms_copolar(fitsfile, lmax, mmax, polang=0, isbalm=False, renorm=True):
-     """Load the beam harmonic coefficients from a FITS file and convert them to the healpy format, if they do not contain polarization assumes copolarity."""
+
+def load_Planck_blms_copolar(fitsfile, lmax, mmax, polang=0, isbalm=False, renorm=True):
+    """Load the beam harmonic coefficients from a FITS file and convert them to the healpy format, if they do not contain polarization assumes copolarity."""
     blms_grasp = get_blms_fits(
         fitsfile, lmax=lmax, mmax=mmax, isbalm=isbalm, renorm=renorm
     )
     if blms_grasp.shape[2] == 3:
         print("Blms in file contains polarization.")
-        blms_grasp = lbs.SphericalHarmonics(values=blms_to_hp_format(blms_grasp, lmax, mmax),lmax=lmax, mmax=mmax)
+        blms_grasp = convert_Planck_blms_to_hp_format(blms_grasp, lmax, mmax)
         return blms_grasp
     else:
         blms_grasp_temp = blms_grasp
-    blms_grasp = lbs.SphericalHarmonics.zeros(lmax=lmax, mmax=mmax, nstokes=3)
+    blms_grasp = np.zeros((3, hp.Alm.getsize(lmax, mmax)), dtype=np.complex128)
 
     def get_blm_lm(l: int, m: int):
         # Return b_lm
@@ -356,54 +306,189 @@ def load_blms_copolar(fitsfile, lmax, mmax, polang=0, isbalm=False, renorm=True)
 
     for l in range(lmax + 1):
         for m in range(min(l, mmax) + 1):
-            idx_m = lbs.SphericalHarmonics.get_index(lmax, l, m)
-            blms_grasp.values[0, idx_m] = blms_grasp_temp[l, m, 0]
+            idx_m = hp.Alm.getidx(lmax, l, m)
+            blms_grasp[0, idx_m] = blms_grasp_temp[l, m, 0]
 
             b_m_plus_2 = phase_p2 * get_blm_lm(l, m + 2)
             b_m_minus_2 = phase_m2 * get_blm_lm(l, m - 2)
 
-            blms_grasp.values[1, idx_m] = -0.5 * (b_m_plus_2 + b_m_minus_2) #blm E
-            blms_grasp.values[2, idx_m] = 0.5j * (b_m_plus_2 - b_m_minus_2) #blm B
+            blms_grasp[1, idx_m] = -0.5 * (b_m_plus_2 + b_m_minus_2)  # blm E
+            blms_grasp[2, idx_m] = 0.5j * (b_m_plus_2 - b_m_minus_2)  # blm B
 
     return blms_grasp
 
 
-def produce_conv_map(detector_set: str, RIMO_path: str, nside: int, lmax: int, mmax: int, pol_efficiency: str, path_to_cl: str, path_to_pol_moments: str, path_to_output: str, path_to_blms: str, subset: int | None = None,ref_polmoments="Pxx",ref_blms="Dxx",apply_pixel_window: bool = True,temperature_only:bool =False,seed_cmb: int | None = None,condition_number_threshold: float = 20):
+@dataclass(slots=True)
+class PlanckDetectorsData:
+    """Detector-specific informations."""
 
-    detector_names   = list_planck(detector_set, subset=subset)
-    rimo = load_RIMO(RIMO_path)
-    if pol_efficiency == "IMO":
-        polarisation_efficiencies = [(1 - rimo[det].epsilon) / (1 + rimo[det].epsilon) for det in detector_names]
-    elif pol_efficiency == "Ideal":
-        polarisation_efficiencies = [1 for det in detector_names]
-    pol_angles_rad= get_angles(RIMO=rimo,shorts=detector_set,ref= ref_blms)
-    blms_dict = get_blms(det_names=detector_names, path_to_beams=path_to_blms, lmax=lmax, mmax_beam=mmax, pol_ang_rad=pol_angles_rad, polarisation_efficiencies=polarisation_efficiencies)
+    detector_set: str
+    path_to_blms: str
+    path_to_pol_moments: str
+    path_to_rimo: str
+    mmax_beam: int
+    lmax: int
+    ref_frame_beams: str
+    ref_frame_polmoments: str
+    blm_polar_efficiency: str
+    detector_subset: int | None = None
 
-    h_maps_dict= build_h_maps_dictionnary( det_names=detector_names, moments_dir=path_to_pol_moments, smax=mmax+2, spin_ref=ref_polmoments, RIMO=rimo, detector_weights=detector_weights,dtype=    np.complex128)
+    # Dynamic attributes initialized later
+    rimo: Any = field(init=False)
+    detector_names: Any = field(init=False)
+    rho: Any = field(init=False)
+    pol_angles_rad: Any = field(init=False)
+    blms_dict: Any = field(init=False)
+    h_maps_dict: Any = field(init=False)
 
-    alms_dict = generate_cmb_alms(det_names=detector_names, path_to_cl=path_to_cl, lmax=lmax,nside=nside,seed_cmb=seed_cmb,apply_pixel_window=apply_pixel_window,polarized=not temperature_only)
-    spin_syst = sm_beam_conv.get_systematic_maps_from_alms_blms(
-        alms_dict,
-        blms_dict,
-        np.ones(len(detector_names)),
-        detector_names,
-        lmax,
-        mmax,
-        nside,
-        pol_angles_rad ,
+    def __post_init__(self):
+        self.rimo = load_RIMO(self.path_to_rimo)
+        self._set_detector_names()
+        if self.detector_names == -1:
+            raise ValueError("Invalid detector subset")
+        self._set_polarisation_efficiencies()
+        self._set_pol_angles_rad()
+
+    def _set_detector_names(self):
+        self.detector_names = list_planck(
+            self.detector_set, subset=self.detector_subset
+        )
+
+    def _set_polarisation_efficiencies(self):
+        if self.blm_polar_efficiency == "IMO":
+            rho = [
+                (1 - self.rimo[det].epsilon) / (1 + self.rimo[det].epsilon)
+                for det in self.detector_names
+            ]
+        elif self.blm_polar_efficiency == "Ideal":
+            rho = [1 for det in self.detector_names]
+        else:
+            raise ValueError(
+                f"Unknown polarisation efficiency model: {self.blm_polar_efficiency}"
+            )
+
+        self.rho = rho
+
+    def _set_pol_angles_rad(self):
+        pol_angles_rad = get_angles(
+            RIMO=self.rimo, shorts=self.detector_names, ref=self.ref_frame_beams
+        )
+        self.pol_angles_rad = pol_angles_rad
+
+    def fill_blms_dict(self):
+
+        blms_dict = get_Planck_det_blms(
+            det_names=self.detector_names,
+            path_to_beams=self.path_to_blms,
+            lmax=self.lmax,
+            mmax_beam=self.mmax_beam,
+            pol_ang_rad=self.pol_angles_rad,
+            polarisation_efficiencies=self.rho,
+        )
+        self.blms_dict = blms_dict
+
+    def set_h_maps_dict(self, h_maps_dict):
+        self.h_maps_dict = h_maps_dict
+
+    def fill_h_maps_dict(self, dtype: type = np.complex128):
+        if not hasattr(self, "detector_names"):
+            self._set_detector_names()
+        h_maps_dict, _ = build_Planck_h_maps_dictionnary(
+            det_names=self.detector_names,
+            moments_dir=self.path_to_pol_moments,
+            smax=self.mmax_beam + 2,
+            spin_ref=self.ref_frame_polmoments,
+            RIMO=self.rimo,
+            dtype=dtype,
+            detector_weights=detector_weights,
+        )
+        self.h_maps_dict = h_maps_dict
+
+
+@dataclass(slots=True)
+class SkyData:
+    """Sky-specific inputs that can be reused across detector sets."""
+
+    nside: int
+    lmax: int
+    apply_pixel_window: bool
+    temperature_only: bool = False
+
+    alms_dict: Any = field(init=False)
+
+    def fill_cmb_alms(
+        self, detector_names, path_to_cl: str, seed_cmb: int | None = None
+    ):
+        alms_dict = generate_cmb_alms(
+            det_names=detector_names,
+            path_to_cl=path_to_cl,
+            lmax=self.lmax,
+            nside=self.nside,
+            seed_cmb=seed_cmb,
+            apply_pixel_window=self.apply_pixel_window,
+            polarized=not self.temperature_only,
+        )
+        self.alms_dict = alms_dict
+
+    def set_alms_dict(self, alms_dict):
+        """Set the alms_dict attribute."""
+        self.alms_dict = alms_dict
+
+
+def compute_convolved_planck_map(
+    sky_data: SkyData,
+    detector_data: PlanckDetectorsData,
+    output_directory: Path | str | None = None,
+    inverse_mapmaking_matrix: np.ndarray | None = None,
+    return_inverse_mapmaking_matrix: bool = False,
+    condition_number_threshold: float | None = None,
+) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
+
+    assert sky_data.lmax == detector_data.lmax, "The blms and alms lmax do not match"
+    spin_syst_dict = sm_beam_conv.get_systematic_maps_from_alms_blms(
+        sky_data.alms_dict,
+        detector_data.blms_dict,
+        np.ones(len(detector_data.detector_names)),
+        detector_data.detector_names,
+        sky_data.lmax,
+        detector_data.mmax_beam,
+        sky_data.nside,
+        detector_data.pol_angles_rad,
         substract_gaussian_beam=False,
     )
-    empty_sky = np.zeros((3, hp.nside2npix(nside)))
-    spin_sky = transform_array_maps_into_spin_maps(empty_sky, n_stokes_output=3)
-
-    tqu_smarties, inverse_mapmaking_matrix = run_smarties_mapmaking(
-        h_maps_dict,
-        np.ones(hp.nside2npix(nside)),
-        spin_sky,
-        spin_syst,
-        lmax,
-        pol_angles_rad,
-        True,
-        condition_number_threshold,
+    spin_syst = Spin_maps.from_dictionary(spin_syst_dict)
+    print(np.max(np.abs(spin_syst[4])))
+    print(np.max(np.abs(spin_syst[3])))
+    print(np.max(np.abs(spin_syst[2])))
+    print(np.max(np.abs(spin_syst[4])))
+    empty_sky = transform_array_maps_into_spin_maps(
+        np.zeros((3, hp.nside2npix(sky_data.nside))), n_stokes_output=3
     )
-    return tqu_smarties, inverse_mapmaking_matrix
+    output = run_smarties_mapmaking(
+        h_n_spin_dict=detector_data.h_maps_dict,
+        mask_hits=np.ones(hp.nside2npix(sky_data.nside)),
+        spin_sky_maps=empty_sky,
+        spin_systematics_maps=spin_syst,
+        lmax=sky_data.lmax,
+        pol_ang_rad=detector_data.pol_angles_rad,
+        inverse_mapmaking_matrix=inverse_mapmaking_matrix,
+        return_inverse_mapmaking_matrix=return_inverse_mapmaking_matrix,
+        condition_number_mask=condition_number_threshold is not None,
+        condition_number_threshold=condition_number_threshold,
+    )
+    if return_inverse_mapmaking_matrix:
+        inverse_mapmaking_matrix = output[1]
+        TQU_convolved_map = output[0]
+    else:
+        TQU_convolved_map = output
+    if output_directory is not None:
+        if isinstance(output_directory, str):
+            output_directory = Path(output_directory)
+        file_name = Path(
+            f"TQU_map_nside{sky_data.nside}_{detector_data.detector_set}_mmax_{detector_data.mmax_beam}.npy"
+        )
+        np.save(output_directory / file_name, TQU_convolved_map)
+    if return_inverse_mapmaking_matrix:
+        return TQU_convolved_map, inverse_mapmaking_matrix
+    else:
+        return TQU_convolved_map

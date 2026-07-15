@@ -110,26 +110,26 @@ def generate_cmb_alms(
     """Generate CMB alms from a Cl"""
     np.random.seed(seed_cmb)
 
+
+    cls = hp.read_cl(path_to_cl)
+    if apply_pixel_window:
+        match cls.shape:
+            case (1,):
+                cls *= hp.pixwin(nside, lmax=lmax, pol=False) ** 2
+            case (3,):
+                cls *= hp.pixwin(nside, lmax=lmax, pol=True) ** 2
+    alms = hp.synalm(cls=cls, lmax=lmax, verbose=False, new=True)
+    if alms.shape[0] == 1:
+        print("Alms only contain temperature, padding polarization with zeros")
+        alms = np.atleast_2d(alms)
+        alms = np.pad(alms, ((0, 2), (0, 0)), mode="constant", constant_values=0)
+    if not polarized:
+        alms[1] *= 0
+        alms[2] *= 0
+    if apply_pixel_window:
+        apply_pixwin(alms, nside, lmax)
     alms_dict = {}
     for det in det_names:
-        cls = hp.read_cl(path_to_cl)
-        if apply_pixel_window:
-            match cls.shape:
-                case (1,):
-                    cls *= hp.pixwin(nside, lmax=lmax, pol=False) ** 2
-                case (3,):
-                    cls *= hp.pixwin(nside, lmax=lmax, pol=True) ** 2
-        alms = hp.synalm(cls=cls, lmax=lmax, verbose=False, new=True)
-
-        if alms.shape[0] == 1:
-            print("Alms only contain temperature, padding polarization with zeros")
-            alms = np.atleast_2d(alms)
-            alms = np.pad(alms, ((0, 2), (0, 0)), mode="constant", constant_values=0)
-        if not polarized:
-            alms[1] *= 0
-            alms[2] *= 0
-        if apply_pixel_window:
-            apply_pixwin(alms, nside, lmax)
         alms_dict[det] = alms
     return alms_dict
 

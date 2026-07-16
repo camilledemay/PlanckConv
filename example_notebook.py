@@ -52,33 +52,15 @@ def _(PlanckDetectorsData, lmax):
         path_to_rimo="inputs/RIMOs/RIMO_HFI_npipe5v16_symmetrized.fits",
         mmax_beam=mmax,
         lmax=lmax,
-        blm_polar_efficiency="IMO",  # Set this to Ideal if youre blms already contains the polarisation efficiency
+        blm_polar_efficiency="IMO",  # If the blms contains polarization this does nothing, if they don't it applies the polarization efficiency when assuming copolar beams
         mapmaking_polar_efficiency="IMO",  # Polarisation efficiency assumed by the mapmaking
         ref_frame_beams="Dxx",
         ref_frame_polmoments="Pxx",
     )
-
-    # det_planck_data.rho_blm = (
-    #     np.ones_like(det_planck_data.detector_names, dtype=int) * 0.4
-    # )
-    # det_planck_data.rho_mapmaking = (
-    #     np.ones_like(det_planck_data.detector_names, dtype=int) * 0.5
-    # )
     det_planck_data.fill_blms_dict()
 
     det_planck_data.fill_h_maps_dict()
-    return det_planck_data, mmax
-
-
-@app.cell
-def _():
-    return
-
-
-@app.cell
-def _(det_planck_data):
-    det_planck_data.rho_mapmaking
-    return
+    return (det_planck_data,)
 
 
 @app.cell(hide_code=True)
@@ -106,20 +88,6 @@ def _(SkyData, det_planck_data, lmax, nside):
     return (sky,)
 
 
-@app.cell
-def _():
-    # import pickle
-
-    # lbs_alms = pickle.load(
-    #     open(
-    #         "/home/camille/Documents/PhD/litebird_thingy/h-maps_beam_conv_paper/smarties_with_planck_polmoments/cmb_alms_dict.pkl",
-    #         mode="rb",
-    #     )
-    # )
-    # sky.set_alms_dict(lbs_alms)
-    return
-
-
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
@@ -138,7 +106,7 @@ def _(compute_convolved_planck_map, det_planck_data, sky):
         output_directory=None,
         condition_number_threshold=None,
     )
-    return TQU_conv, inverse_mm
+    return (TQU_conv,)
 
 
 @app.cell
@@ -172,7 +140,7 @@ def _(TQU_conv, hp, plt):
             sub=(1, 3, j + 1),
             title=f"{label2}",
             unit=r"$\mu$K",
-            cmap="seismic",
+            cmap="viridis",
             format="%.1e",
             cbar=True,
             fontsize={"": 00},
@@ -191,7 +159,6 @@ def _(TQU_conv, det_planck_data, hp, lmax, sky):
 
 @app.cell
 def _(lmax, np, plt, spect_conv, spect_input):
-    # ---------- Plot mean spectra comparison ----------
     spec_order = [0, 1, 2, 3, 4, 5]
     spec_labels = ["TT", "EE", "BB", "TE", "EB", "TB"]
     ells = np.arange(lmax + 1)
@@ -200,22 +167,14 @@ def _(lmax, np, plt, spect_conv, spect_input):
 
     for ax, idx, cur_label in zip(axes, spec_order, spec_labels):
         ax.plot(ells, spect_conv[idx], label="Smarties -> anafast", alpha=0.8)
-        if cur_label in ["TB", "EB"]:
-            ax.plot(
-                ells,
-                np.zeros_like(ells),
-                "--",
-                color="green",
-                label="Input (0)",
-            )
-        else:
-            ax.plot(
-                ells,
-                spect_input[idx][: lmax + 1],
-                "--",
-                color="green",
-                label="Input",
-            )
+
+        ax.plot(
+            ells,
+            spect_input[idx][: lmax + 1],
+            "--",
+            color="green",
+            label="Input",
+        )
         qp_label = "TT" if cur_label in ["TT", "TE", "TB"] else cur_label
         # Shaded error band for Smarties
         ax.set_title(cur_label)
@@ -230,147 +189,6 @@ def _(lmax, np, plt, spect_conv, spect_input):
 
     fig.tight_layout()
     plt.show()
-    return
-
-
-@app.cell
-def _(det_planck_data):
-    det_planck_data.pol_angles_rad
-    return
-
-
-@app.cell
-def _(det_planck_data, hp, mmax, np, plt):
-    plt.figure(figsize=(15, 10), dpi=130)
-    det_index = 0
-    det_names = det_planck_data.detector_names
-    h_n_spin_dict = det_planck_data.h_maps_dict
-    for s in np.arange(mmax + 3):
-        print(
-            f"mean of h_{s} for detector {det_names[det_index]}: {np.mean(h_n_spin_dict[s][det_index].real)}"
-        )
-        hp.mollview(
-            h_n_spin_dict[s][det_index].real,
-            title=f"h_{s} for detector {det_names[det_index]}, mean: {np.mean(h_n_spin_dict[s][det_index].real):.1e}",
-            sub=(3, 3, s + 1),
-        )
-    plt.show()
-    return det_names, h_n_spin_dict
-
-
-@app.cell
-def _(det_names, h_n_spin_dict, hp, mmax, np, plt):
-    def _():
-        fig = plt.figure(figsize=(15, 10), dpi=130)
-        det_index = 0
-        for s in np.arange(mmax + 3):
-            hp.mollview(
-                h_n_spin_dict[s][det_index].real
-                - h_n_spin_dict[s][det_index + 1].real,
-                title=f"h_{s} for detector {det_names[det_index]}, max: {np.max(h_n_spin_dict[s][det_index].real - h_n_spin_dict[s][det_index + 1].real):.1e}",
-                sub=(3, 3, s + 1),
-            )
-
-    _()
-    plt.show()
-    return
-
-
-@app.cell
-def _(hp, inverse_mm, np, nside, plt):
-    def _():
-        nstokes = 3
-        total_mask = np.ones(hp.nside2npix(nside))
-        mapmaking_matrix = np.linalg.pinv(inverse_mm)
-
-        extended_mapmaking_matrix = (
-            np.ones(
-                (
-                    nstokes,
-                    nstokes,
-                )
-                + total_mask.shape
-            ).squeeze()
-            * hp.UNSEEN
-        )
-
-        # value = 10
-        plt.figure(figsize=(10, 8))
-        extended_mapmaking_matrix[:, :, total_mask != 0] = (
-            mapmaking_matrix.T.real
-        )
-        for i in range(nstokes**2):
-            row_ = i // nstokes
-            col_ = i % nstokes
-
-            hp.mollview(
-                extended_mapmaking_matrix[row_, col_, :],
-                sub=(nstokes, nstokes, i + 1),
-                cmap="seismic",
-                title=f"M element ({row_},{col_}) real \n <mean> = {mapmaking_matrix[:, row_, col_].real.mean():.2e}",
-            )  # , min=-value, max=value)
-
-        plt.figure(figsize=(10, 8))
-        extended_mapmaking_matrix[:, :, total_mask != 0] = (
-            mapmaking_matrix.T.imag
-        )
-        for i in range(nstokes**2):
-            row_ = i // nstokes
-            col_ = i % nstokes
-        return hp.mollview(
-            extended_mapmaking_matrix[row_, col_, :],
-            sub=(nstokes, nstokes, i + 1),
-            cmap="seismic",
-            title=f"M element ({row_},{col_}) imag \n <mean> = {mapmaking_matrix[:, row_, col_].imag.mean():.2e}",
-        )  # , min=-value, max=value)
-
-    _()
-    plt.show()
-    return
-
-
-@app.cell
-def _(det_planck_data, np, sky):
-    import smarties.systematics.beam_convolution as sm_beam_conv
-
-    spin_syst = sm_beam_conv.get_systematic_maps_from_alms_blms(
-        sky.alms_dict,
-        det_planck_data.blms_dict,
-        np.ones(len(det_planck_data.detector_names)),
-        det_planck_data.detector_names,
-        sky.lmax,
-        det_planck_data.mmax_beam,
-        sky.nside,
-        det_planck_data.pol_angles_rad,
-        substract_gaussian_beam=False,
-    )
-    return (spin_syst,)
-
-
-@app.cell
-def _(det_names, hp, mmax, np, plt, spin_syst):
-    def _():
-        fig = plt.figure(figsize=(15, 10), dpi=130)
-        det_index = 0
-        for s in np.arange(0, mmax + 2, 2):
-            hp.mollview(
-                spin_syst[s][det_index].real,
-                title=f"Spin map {s} for detector {det_names[det_index]}, mean: {np.mean(spin_syst[s][det_index].real):.1e}",
-                sub=(3, 3, s + 1),
-            )
-        return plt.show()
-
-    _()
-    return
-
-
-@app.cell
-def _():
-    return
-
-
-@app.cell
-def _():
     return
 
 

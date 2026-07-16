@@ -13,4 +13,4 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-smarties = { git = "https://github.com/camilledemay/smarties-beam-convolution" }
+smarties = { path = "../litebird_thingy/smarties", editable = true }

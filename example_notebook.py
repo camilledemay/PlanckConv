@@ -47,15 +47,23 @@ def _(PlanckDetectorsData, lmax):
     mmax = 4
     det_planck_data = PlanckDetectorsData(
         detector_set="100A",  # you can refer to list_planck() to check the different set of detectors
-        path_to_blms="/home/camille/Documents/PhD/litebird_thingy/h-maps_beam_conv_paper/smarties_with_planck_polmoments/gaussian_elliptical_beams/",
-        path_to_pol_moments="/home/camille/Documents/PhD/litebird_thingy/h-maps_beam_conv_paper/polmoments_ns0128",  # planck h-maps are called polmoments
+        path_to_blms="/home/camille/Documents/PhD/litebird_thingy/h-maps_beam_conv_paper/GRASP beam/beams/",
+        path_to_pol_moments="/home/camille/Documents/PhD/litebird_thingy/h-maps_beam_conv_paper/polmoments_ns0128_ideal",  # planck h-maps are called polmoments
         path_to_rimo="inputs/RIMOs/RIMO_HFI_npipe5v16_symmetrized.fits",
         mmax_beam=mmax,
         lmax=lmax,
-        blm_polar_efficiency="Ideal",
+        blm_polar_efficiency="IMO", # Set this to ideal if youre blms already contains the polarisation efficiency
+        mapmaking_polar_efficiency="IMO", # Polarisation efficiency assumed by the mapmaking
         ref_frame_beams="Dxx",
         ref_frame_polmoments="Pxx",
     )
+
+    # det_planck_data.rho_blm = (
+    #     np.ones_like(det_planck_data.detector_names, dtype=int) * 0.1
+    # )
+    # det_planck_data.rho_mapmaking = (
+    #     np.ones_like(det_planck_data.detector_names, dtype=int) * 0.1
+    # )
     det_planck_data.fill_blms_dict()
 
     det_planck_data.fill_h_maps_dict()
@@ -64,6 +72,12 @@ def _(PlanckDetectorsData, lmax):
 
 @app.cell
 def _():
+    return
+
+
+@app.cell
+def _(det_planck_data):
+    det_planck_data.rho_mapmaking
     return
 
 

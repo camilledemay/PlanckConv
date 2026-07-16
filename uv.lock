@@ -1133,7 +1133,7 @@ requires-dist = [
     { name = "nbformat", specifier = ">=5.10.4" },
     { name = "pixell", specifier = ">=0.31.10" },
     { name = "ruff", specifier = ">=0.15.21" },
-    { name = "smarties", git = "https://github.com/camilledemay/smarties-beam-convolution" },
+    { name = "smarties", editable = "../litebird_thingy/smarties" },
 ]
 
 [[package]]
@@ -1538,8 +1538,7 @@ wheels = [
 
 [[package]]
 name = "smarties"
-version = "0.1.dev129+gd45a45698"
-source = { git = "https://github.com/camilledemay/smarties-beam-convolution#d45a45698727a6dea05357691365918e18cbe93d" }
+source = { editable = "../litebird_thingy/smarties" }
 dependencies = [
     { name = "ducc0" },
     { name = "h5py" },
@@ -1548,6 +1547,22 @@ dependencies = [
     { name = "opt-einsum" },
     { name = "scipy" },
 ]
+
+[package.metadata]
+requires-dist = [
+    { name = "camb", marker = "extra == 'optional'" },
+    { name = "ducc0" },
+    { name = "h5py" },
+    { name = "healpy", specifier = ">=0.16.6" },
+    { name = "matplotlib", marker = "extra == 'optional'" },
+    { name = "numpy" },
+    { name = "opt-einsum" },
+    { name = "pixell", marker = "extra == 'optional'" },
+    { name = "scipy" },
+    { name = "toml", marker = "extra == 'optional'" },
+    { name = "tqdm", marker = "extra == 'optional'" },
+]
+provides-extras = ["optional"]
 
 [[package]]
 name = "starlette"

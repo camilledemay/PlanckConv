@@ -181,6 +181,7 @@ def run_smarties_mapmaking(
     spin_systematics_maps,
     lmax,
     pol_ang_rad,
+    pol_efficiency,
     inverse_mapmaking_matrix,
     return_inverse_mapmaking_matrix,
     condition_number_mask,
@@ -200,6 +201,7 @@ def run_smarties_mapmaking(
         return_inverse_mapmaking_matrix=return_inverse_mapmaking_matrix or condition_number_mask,
         mask_input=False,
         polar_angle=pol_ang_rad,
+        polar_efficiency_coeff=pol_efficiency,
     )
     if return_inverse_mapmaking_matrix or condition_number_mask:
         final_spin_maps, inverse_mapmaking_matrix = out
@@ -331,12 +333,16 @@ class PlanckDetectorsData:
     ref_frame_beams: str
     ref_frame_polmoments: str
     blm_polar_efficiency: str
+    mapmaking_polar_efficiency: str
+
     detector_subset: int | None = None
 
     # Dynamic attributes initialized later
     rimo: Any = field(init=False)
     detector_names: Any = field(init=False)
-    rho: Any = field(init=False)
+    rho_mapmaking: Any = field(init=False)
+    rho_blm: Any = field(init=False)
+
     pol_angles_rad: Any = field(init=False)
     blms_dict: Any = field(init=False)
     h_maps_dict: Any = field(init=False)
@@ -356,18 +362,31 @@ class PlanckDetectorsData:
 
     def _set_polarisation_efficiencies(self):
         if self.blm_polar_efficiency == "IMO":
-            rho = [
+            rho_blm = [
                 (1 - self.rimo[det].epsilon) / (1 + self.rimo[det].epsilon)
                 for det in self.detector_names
             ]
         elif self.blm_polar_efficiency == "Ideal":
-            rho = [1 for det in self.detector_names]
+            rho_blm = [1 for det in self.detector_names]
         else:
             raise ValueError(
                 f"Unknown polarisation efficiency model: {self.blm_polar_efficiency}"
             )
 
-        self.rho = rho
+        if self.mapmaking_polar_efficiency == "IMO":
+            rho_mapmaking = [
+                (1 - self.rimo[det].epsilon) / (1 + self.rimo[det].epsilon)
+                for det in self.detector_names
+            ]
+        elif self.mapmaking_polar_efficiency == "Ideal":
+            rho_mapmaking = [1 for det in self.detector_names]
+        else:
+            raise ValueError(
+                f"Unknown polarisation efficiency model: {self.mapmaking_polar_efficiency}"
+            )
+
+        self.rho_blm = np.array(rho_blm)
+        self.rho_mapmaking = np.array(rho_mapmaking)
 
     def _set_pol_angles_rad(self):
         pol_angles_rad = get_angles(
@@ -383,7 +402,7 @@ class PlanckDetectorsData:
             lmax=self.lmax,
             mmax_beam=self.mmax_beam,
             pol_ang_rad=self.pol_angles_rad,
-            polarisation_efficiencies=self.rho,
+            polarisation_efficiencies=self.rho_blm,
         )
         self.blms_dict = blms_dict
 
@@ -471,6 +490,7 @@ def compute_convolved_planck_map(
         spin_systematics_maps=spin_syst,
         lmax=sky_data.lmax,
         pol_ang_rad=detector_data.pol_angles_rad,
+        pol_efficiency=detector_data.rho_mapmaking,
         inverse_mapmaking_matrix=inverse_mapmaking_matrix,
         return_inverse_mapmaking_matrix=return_inverse_mapmaking_matrix,
         condition_number_mask=condition_number_threshold is not None,

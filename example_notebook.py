@@ -47,13 +47,13 @@ def _(PlanckDetectorsData, lmax):
     mmax = 4
     det_planck_data = PlanckDetectorsData(
         detector_set="100A",  # you can refer to list_planck() to check the different set of detectors
-        path_to_blms="/home/camille/Documents/PhD/litebird_thingy/h-maps_beam_conv_paper/GRASP beam/beams/",
-        path_to_pol_moments="/home/camille/Documents/PhD/litebird_thingy/h-maps_beam_conv_paper/polmoments_ns0128_ideal",  # planck h-maps are called polmoments
+        path_to_blms="inputs/gaussian_elliptical_beams/",
+        path_to_pol_moments="inputs/polmoments_ns0128/",  # planck h-maps are called polmoments
         path_to_rimo="inputs/RIMOs/RIMO_HFI_npipe5v16_symmetrized.fits",
         mmax_beam=mmax,
         lmax=lmax,
-        blm_polar_efficiency="IMO",  # If the blms contains polarization this does nothing, if they don't it applies the polarization efficiency when assuming copolar beams
-        mapmaking_polar_efficiency="IMO",  # Polarisation efficiency assumed by the mapmaking
+        blm_polar_efficiency="Ideal",  # If the blms contains polarization this does nothing, if they don't it applies the polarization efficiency when assuming copolar beams
+        mapmaking_polar_efficiency="Ideal",  # Polarisation efficiency assumed by the mapmaking
         ref_frame_beams="Dxx",
         ref_frame_polmoments="Pxx",
     )

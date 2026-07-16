@@ -192,5 +192,15 @@ def _(lmax, np, plt, spect_conv, spect_input):
     return
 
 
+@app.cell
+def _():
+    return
+
+
+@app.cell
+def _():
+    return
+
+
 if __name__ == "__main__":
     app.run()

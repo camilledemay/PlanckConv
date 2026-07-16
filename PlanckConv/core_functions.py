@@ -258,9 +258,9 @@ def get_Planck_det_blms(
             isbalm=False,
             renorm=True,
             polang=pol_ang_rad[idet],
+            poleff=polarisation_efficiency,
         )
         blms *= 1 / np.sqrt(4 * np.pi)  # renormalize to match smarties convention
-        blms[1:] *= polarisation_efficiency
         blms_dict[det] = blms
 
     return blms_dict
@@ -280,16 +280,18 @@ def convert_Planck_blms_to_hp_format(blms, lmax, mmax):
     return blms_output
 
 
-def load_Planck_blms_copolar(fitsfile, lmax, mmax, polang=0, isbalm=False, renorm=True):
+def load_Planck_blms_copolar(fitsfile, lmax, mmax, polang=0, poleff=1, isbalm=False, renorm=True):
     """Load the beam harmonic coefficients from a FITS file and convert them to the healpy format, if they do not contain polarization assumes copolarity."""
     blms_grasp = get_blms_fits(
         fitsfile, lmax=lmax, mmax=mmax, isbalm=isbalm, renorm=renorm
     )
     if blms_grasp.shape[2] == 3:
-        print("Blms in file contains polarization.")
-        blms_grasp = convert_Planck_blms_to_hp_format(blms_grasp, lmax, mmax)
+        print(f"Blms in {fitsfile} contains polarization.")
+        blms_grasp = convert_Planck_blms_to_hp_format(blms_grasp, lmax, mmax) #do not apply poleff to already polarized blms
         return blms_grasp
     else:
+        print(f"Blms in {fitsfile} do not contain polarization, assuming copolarity.")
+
         blms_grasp_temp = blms_grasp
     blms_grasp = np.zeros((3, hp.Alm.getsize(lmax, mmax)), dtype=np.complex128)
 
@@ -314,8 +316,8 @@ def load_Planck_blms_copolar(fitsfile, lmax, mmax, polang=0, isbalm=False, renor
             b_m_plus_2 = phase_p2 * get_blm_lm(l, m + 2)
             b_m_minus_2 = phase_m2 * get_blm_lm(l, m - 2)
 
-            blms_grasp[1, idx_m] = -0.5 * (b_m_plus_2 + b_m_minus_2)  # blm E
-            blms_grasp[2, idx_m] = 0.5j * (b_m_plus_2 - b_m_minus_2)  # blm B
+            blms_grasp[1, idx_m] = -0.5 * (b_m_plus_2 + b_m_minus_2) * poleff  # blm E
+            blms_grasp[2, idx_m] = 0.5j * (b_m_plus_2 - b_m_minus_2) * poleff  # blm B
 
     return blms_grasp
 

@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-smarties = { path = "../litebird_thingy/smarties", editable = true }
+smarties = { git = "https://github.com/camilledemay/smarties-beam-convolution" }
 
 [build-system]
 requires = ["hatchling"]

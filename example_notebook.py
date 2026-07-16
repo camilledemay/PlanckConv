@@ -52,17 +52,17 @@ def _(PlanckDetectorsData, lmax):
         path_to_rimo="inputs/RIMOs/RIMO_HFI_npipe5v16_symmetrized.fits",
         mmax_beam=mmax,
         lmax=lmax,
-        blm_polar_efficiency="IMO", # Set this to ideal if youre blms already contains the polarisation efficiency
-        mapmaking_polar_efficiency="IMO", # Polarisation efficiency assumed by the mapmaking
+        blm_polar_efficiency="IMO",  # Set this to Ideal if youre blms already contains the polarisation efficiency
+        mapmaking_polar_efficiency="IMO",  # Polarisation efficiency assumed by the mapmaking
         ref_frame_beams="Dxx",
         ref_frame_polmoments="Pxx",
     )
 
     # det_planck_data.rho_blm = (
-    #     np.ones_like(det_planck_data.detector_names, dtype=int) * 0.1
+    #     np.ones_like(det_planck_data.detector_names, dtype=int) * 0.4
     # )
     # det_planck_data.rho_mapmaking = (
-    #     np.ones_like(det_planck_data.detector_names, dtype=int) * 0.1
+    #     np.ones_like(det_planck_data.detector_names, dtype=int) * 0.5
     # )
     det_planck_data.fill_blms_dict()
 

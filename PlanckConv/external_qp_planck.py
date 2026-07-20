@@ -120,12 +120,6 @@ def load_RIMO(path: str, comm: Optional[Any] = None) -> dict[str, DetectorData]:
         fwhms = data.field("fwhm").ravel()
 
         for i in range(len(detectors)):
-            phi = phi_uvs[i] * degree
-            theta = theta_uvs[i] * degree
-            # Make sure we don't double-count psi rotation already included in phi
-            psi = (psi_uvs[i] + psi_pols[i]) * degree - phi
-
-
             RIMO[detectors[i]] = DetectorData(
                 name=detectors[i],
                 phi_uv=phi_uvs[i],

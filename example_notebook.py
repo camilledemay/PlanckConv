@@ -6,7 +6,7 @@ app = marimo.App(width="medium")
 
 @app.cell
 def _():
-    from PlanckConv.core_functions import (
+    from PlanckConv.classes import (
         SkyData,
         PlanckDetectorsData,
         compute_convolved_planck_map,
@@ -108,17 +108,7 @@ def _(SkyData, det_planck_data, lmax, nside, sky):
 
     sky_test.deconvolve_circular_gaussian(fwhm_arcmim=100)
     # the sky components can be added together:
-    sky_test + sky
-    return
-
-
-@app.cell
-def _():
-    return
-
-
-@app.cell
-def _():
+    sky_test - sky
     return
 
 
@@ -223,16 +213,6 @@ def _(lmax, np, plt, spect_conv, spect_input):
 
     fig.tight_layout()
     plt.show()
-    return
-
-
-@app.cell
-def _():
-    return
-
-
-@app.cell
-def _():
     return
 
 

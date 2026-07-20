@@ -3,21 +3,17 @@
 
 import os
 import time
-from pathlib import Path
 
 import healpy as hp
 import numpy as np
-import smarties.systematics.beam_convolution as sm_beam_conv
 from smarties.hn import Spin_maps
 from smarties.mapmaking import FrameworkSystematics
 from smarties.systematics.beam_convolution import convert_alm_spin_to_plusminus
-from smarties.tools import transform_array_maps_into_spin_maps
 
 from PlanckConv.external_qp_planck import (
     get_angles,
     get_blms_fits,
 )
-from PlanckConv.classes import PlanckDetectorsData,SkyData
 # ----------------------------------------------------------------------
 # Load Planck hit‑map moments and build spin maps
 
@@ -133,37 +129,6 @@ def apply_pixwin(alms, nside, lmax):
     hp.almxfl(alms[0], Twindow, inplace=True)
     hp.almxfl(alms[1], Pwindow, inplace=True)
     hp.almxfl(alms[2], Pwindow, inplace=True)
-
-
-# ----------------------------------------------------------------------
-# Smarties systematics maps
-def build_systematics_maps(
-    alms_dict,
-    blms_dict,
-    det_names,
-    lmax,
-    mmax_beam,
-    nside,
-    fwhm_arcmin,
-    pol_ang_rad,
-    smarties_pol_rotation,
-    substract_gaussian_beam,
-):
-    """Return Spin_maps of systematic contributions."""
-    spin_syst = sm_beam_conv.get_systematic_maps_from_alms_blms(
-        alms_dict,
-        blms_dict,
-        np.ones(len(det_names)) * fwhm_arcmin
-        if type(fwhm_arcmin) is float
-        else fwhm_arcmin,
-        det_names,
-        lmax,
-        mmax_beam,
-        nside,
-        pol_ang_rad * smarties_pol_rotation,
-        substract_gaussian_beam=substract_gaussian_beam,
-    )
-    return Spin_maps.from_dictionary(spin_syst)
 
 
 # ----------------------------------------------------------------------
@@ -319,65 +284,3 @@ def load_Planck_blms_copolar(
             blms_grasp[2, idx_m] = 0.5j * (b_m_plus_2 - b_m_minus_2) * poleff  # blm B
 
     return blms_grasp
-
-
-def compute_convolved_planck_map(
-    sky_data: SkyData,
-    detector_data: PlanckDetectorsData,
-    output_directory: Path | str | None = None,
-    inverse_mapmaking_matrix: np.ndarray | None = None,
-    return_inverse_mapmaking_matrix: bool = False,
-    condition_number_threshold: float | None = None,
-):
-
-    assert sky_data.lmax == detector_data.lmax, "The blms and alms lmax do not match"
-    assert list(sky_data.alms_dict.keys()) == detector_data.detector_names, "The alms_dict keys do not match the detector names"
-    spin_syst_dict = sm_beam_conv.get_systematic_maps_from_alms_blms(
-        sky_data.alms_dict,
-        detector_data.blms_dict,
-        np.ones(len(detector_data.detector_names)),
-        detector_data.detector_names,
-        sky_data.lmax,
-        detector_data.mmax_beam,
-        sky_data.nside,
-        detector_data.pol_angles_rad,
-        substract_gaussian_beam=False,
-    )
-
-    spin_syst = Spin_maps.from_dictionary(spin_syst_dict)
-    print(np.max(np.abs(spin_syst[4])))
-    print(np.max(np.abs(spin_syst[3])))
-    print(np.max(np.abs(spin_syst[2])))
-    print(np.max(np.abs(spin_syst[4])))
-    empty_sky = transform_array_maps_into_spin_maps(
-        np.zeros((3, hp.nside2npix(sky_data.nside))), n_stokes_output=3
-    )
-    output = run_smarties_mapmaking(
-        h_n_spin_dict=detector_data.h_maps_dict,
-        mask_hits=np.ones(hp.nside2npix(sky_data.nside)),
-        spin_sky_maps=empty_sky,
-        spin_systematics_maps=spin_syst,
-        lmax=sky_data.lmax,
-        pol_ang_rad=detector_data.pol_angles_rad,
-        pol_efficiency=detector_data.rho_mapmaking,
-        inverse_mapmaking_matrix=inverse_mapmaking_matrix,
-        return_inverse_mapmaking_matrix=return_inverse_mapmaking_matrix,
-        condition_number_mask=condition_number_threshold is not None,
-        condition_number_threshold=condition_number_threshold,
-    )
-    if return_inverse_mapmaking_matrix:
-        inverse_mapmaking_matrix = output[1]
-        TQU_convolved_map = output[0]
-    else:
-        TQU_convolved_map = output
-    if output_directory is not None:
-        if isinstance(output_directory, str):
-            output_directory = Path(output_directory)
-        file_name = Path(
-            f"TQU_map_nside{sky_data.nside}_{detector_data.detector_set}_mmax_{detector_data.mmax_beam}.npy"
-        )
-        np.save(output_directory / file_name, TQU_convolved_map)
-    if return_inverse_mapmaking_matrix:
-        return TQU_convolved_map, inverse_mapmaking_matrix
-    else:
-        return TQU_convolved_map

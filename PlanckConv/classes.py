@@ -53,7 +53,7 @@ class PlanckDetectorsData:
         self.rimo = load_RIMO(self.path_to_rimo)
         self._set_detector_names()
         if self.detector_names == -1:
-            raise ValueError("Invalid detector subset")
+            raise ValueError("Invalid detector set")
         self._set_polarisation_efficiencies()
         self._set_pol_angles_rad()
 

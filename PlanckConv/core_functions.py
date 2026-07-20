@@ -110,7 +110,6 @@ def generate_cmb_alms(
     """Generate CMB alms from a Cl"""
     np.random.seed(seed_cmb)
 
-
     cls = hp.read_cl(path_to_cl)
     if apply_pixel_window:
         match cls.shape:
@@ -118,7 +117,7 @@ def generate_cmb_alms(
                 cls *= hp.pixwin(nside, lmax=lmax, pol=False) ** 2
             case (3,):
                 cls *= hp.pixwin(nside, lmax=lmax, pol=True) ** 2
-    alms = hp.synalm(cls=cls, lmax=lmax, verbose=False, new=True)
+    alms = hp.synalm(cls=cls, lmax=lmax, new=True)
     if alms.shape[0] == 1:
         print("Alms only contain temperature, padding polarization with zeros")
         alms = np.atleast_2d(alms)
@@ -198,7 +197,8 @@ def run_smarties_mapmaking(
         spin_systematics_maps,
         return_Q_U=False,
         inverse_mapmaking_matrix=inverse_mapmaking_matrix,
-        return_inverse_mapmaking_matrix=return_inverse_mapmaking_matrix or condition_number_mask,
+        return_inverse_mapmaking_matrix=return_inverse_mapmaking_matrix
+        or condition_number_mask,
         mask_input=False,
         polar_angle=pol_ang_rad,
         polar_efficiency_coeff=pol_efficiency,
@@ -280,14 +280,18 @@ def convert_Planck_blms_to_hp_format(blms, lmax, mmax):
     return blms_output
 
 
-def load_Planck_blms_copolar(fitsfile, lmax, mmax, polang=0, poleff=1, isbalm=False, renorm=True):
+def load_Planck_blms_copolar(
+    fitsfile, lmax, mmax, polang=0, poleff=1, isbalm=False, renorm=True
+):
     """Load the beam harmonic coefficients from a FITS file and convert them to the healpy format, if they do not contain polarization assumes copolarity."""
     blms_grasp = get_blms_fits(
         fitsfile, lmax=lmax, mmax=mmax, isbalm=isbalm, renorm=renorm
     )
     if blms_grasp.shape[2] == 3:
         print(f"Blms in {fitsfile} contains polarization.")
-        blms_grasp = convert_Planck_blms_to_hp_format(blms_grasp, lmax, mmax) #do not apply poleff to already polarized blms
+        blms_grasp = convert_Planck_blms_to_hp_format(
+            blms_grasp, lmax, mmax
+        )  # do not apply poleff to already polarized blms
         return blms_grasp
     else:
         print(f"Blms in {fitsfile} do not contain polarization, assuming copolarity.")
@@ -432,13 +436,16 @@ class SkyData:
 
     nside: int
     lmax: int
-    apply_pixel_window: bool
     temperature_only: bool = False
 
-    alms_dict: Any = field(init=False)
+    alms_dict: Any = field(default_factory=dict)
 
     def fill_cmb_alms(
-        self, detector_names, path_to_cl: str, seed_cmb: int | None = None
+        self,
+        detector_names,
+        path_to_cl: str,
+        seed_cmb: int | None = None,
+        apply_pixel_window: bool = False,
     ):
         alms_dict = generate_cmb_alms(
             det_names=detector_names,
@@ -446,7 +453,7 @@ class SkyData:
             lmax=self.lmax,
             nside=self.nside,
             seed_cmb=seed_cmb,
-            apply_pixel_window=self.apply_pixel_window,
+            apply_pixel_window=apply_pixel_window,
             polarized=not self.temperature_only,
         )
         self.alms_dict = alms_dict
@@ -454,6 +461,60 @@ class SkyData:
     def set_alms_dict(self, alms_dict):
         """Set the alms_dict attribute."""
         self.alms_dict = alms_dict
+
+    def deconvolve_circular_gaussian(self, fwhm_arcmim: float):
+        """Deconvolve the circular Gaussian."""
+        Bl = hp.sphtfunc.gauss_beam(
+            np.deg2rad(fwhm_arcmim / 60), lmax=self.lmax, pol=True
+        )
+        for key in self.alms_dict.keys():
+            hp.sphtfunc.almxfl(self.alms_dict[key][0], 1 / Bl[:, 0], inplace=True)
+            hp.sphtfunc.almxfl(self.alms_dict[key][1], 1 / Bl[:, 1], inplace=True)
+            hp.sphtfunc.almxfl(self.alms_dict[key][2], 1 / Bl[:, 2], inplace=True)
+
+    def convolve_circular_gaussian(self, fwhm_arcmim: float):
+        """Convolve the alms with a circular Gaussian beam."""
+        Bl = hp.sphtfunc.gauss_beam(
+            np.deg2rad(fwhm_arcmim / 60), lmax=self.lmax, pol=True
+        )
+        for key in self.alms_dict.keys():
+            hp.sphtfunc.almxfl(self.alms_dict[key][0], Bl[:, 0], inplace=True)
+            hp.sphtfunc.almxfl(self.alms_dict[key][1], Bl[:, 1], inplace=True)
+            hp.sphtfunc.almxfl(self.alms_dict[key][2], Bl[:, 2], inplace=True)
+
+    def __add__(self, other: "SkyData") -> "SkyData":
+        assert self.lmax == other.lmax, (
+            "The lmax of the two SkyData objects do not match"
+        )
+        assert self.nside == other.nside, (
+            "The nside of the two SkyData objects do not match"
+        )
+        return SkyData(
+            nside=self.nside,
+            lmax=self.lmax,
+            temperature_only=self.temperature_only,
+            alms_dict={
+                key: self.alms_dict[key] + other.alms_dict[key]
+                for key in self.alms_dict.keys()
+            },
+        )
+
+    def __sub__(self, other: "SkyData") -> "SkyData":
+        assert self.lmax == other.lmax, (
+            "The lmax of the two SkyData objects do not match"
+        )
+        assert self.nside == other.nside, (
+            "The nside of the two SkyData objects do not match"
+        )
+        return SkyData(
+            nside=self.nside,
+            lmax=self.lmax,
+            temperature_only=self.temperature_only,
+            alms_dict={
+                key: self.alms_dict[key] - other.alms_dict[key]
+                for key in self.alms_dict.keys()
+            },
+        )
 
 
 def compute_convolved_planck_map(
@@ -466,6 +527,7 @@ def compute_convolved_planck_map(
 ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
 
     assert sky_data.lmax == detector_data.lmax, "The blms and alms lmax do not match"
+    assert list(sky_data.alms_dict.keys()) == detector_data.detector_names, "The alms_dict keys do not match the detector names"
     spin_syst_dict = sm_beam_conv.get_systematic_maps_from_alms_blms(
         sky_data.alms_dict,
         detector_data.blms_dict,
@@ -477,6 +539,7 @@ def compute_convolved_planck_map(
         detector_data.pol_angles_rad,
         substract_gaussian_beam=False,
     )
+
     spin_syst = Spin_maps.from_dictionary(spin_syst_dict)
     print(np.max(np.abs(spin_syst[4])))
     print(np.max(np.abs(spin_syst[3])))

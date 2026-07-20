@@ -76,16 +76,49 @@ def _(SkyData, det_planck_data, lmax, nside):
     sky = SkyData(
         nside=nside,
         lmax=lmax,
-        apply_pixel_window=False,
         temperature_only=False,
     )
     sky.fill_cmb_alms(
         det_planck_data.detector_names,
         path_to_cl="inputs/Cls_Planck2018_for_PTEP_2020_r0.fits",
         seed_cmb=1,
+        apply_pixel_window=False,
     )
     # Or you can provide whatever set of alms you want with SkyData.set_alms_dict(alms_dict), where alms_dict is a dictionnary with a set of alms for each detector, the keys being the detector_names
+
+
     return (sky,)
+
+
+@app.cell
+def _(SkyData, det_planck_data, lmax, nside):
+    # If some of your input, e.g foreground map, is convolved with a circular gaussian beam
+    # the circular gaussian beam can be deconvolved
+    # example
+    sky2 = SkyData(
+        nside=nside,
+        lmax=lmax,
+        temperature_only=False,
+    )
+    sky2.fill_cmb_alms(
+        det_planck_data.detector_names,
+        path_to_cl="inputs/Cls_Planck2018_for_PTEP_2020_r0.fits",
+        seed_cmb=1,
+        apply_pixel_window=False,
+    )
+    sky2.convolve_circular_gaussian(fwhm_arcmim=100)
+    sky2.deconvolve_circular_gaussian(fwhm_arcmim=100)
+    return
+
+
+@app.cell
+def _():
+    return
+
+
+@app.cell
+def _():
+    return
 
 
 @app.cell(hide_code=True)

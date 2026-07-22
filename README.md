@@ -1,7 +1,7 @@
 This code enables efficient simulation of beam-convolved Planck maps from arbitrary input skies,it takes the following inputs:
 
-- harmonic coefficients (`alms`),
-- Planck beam harmonic coefficients, and
+- harmonic coefficients (`alms`)
+- Planck beam harmonic coefficients (`blms`) 
 - Planck polmoments
 
 The required data files can be downloaded here: 

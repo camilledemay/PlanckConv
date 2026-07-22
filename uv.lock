@@ -1691,7 +1691,6 @@ name = "planckconv"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "nbformat" },
     { name = "notebook" },
     { name = "pixell" },
     { name = "ruff" },
@@ -1700,7 +1699,6 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "nbformat", specifier = ">=5.10.4" },
     { name = "notebook", specifier = ">=7.6.1" },
     { name = "pixell", specifier = ">=0.31.10" },
     { name = "ruff", specifier = ">=0.15.21" },

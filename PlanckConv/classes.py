@@ -12,7 +12,7 @@ from PlanckConv.core_functions import (
     build_Planck_h_maps_dictionnary,
     generate_cmb_alms,
     get_Planck_det_blms,
-    run_smarties_mapmaking
+    run_smarties_mapmaking,
 )
 from PlanckConv.external_qp_planck import (
     detector_weights,
@@ -24,7 +24,33 @@ from PlanckConv.external_qp_planck import (
 
 @dataclass(slots=True)
 class PlanckDetectorsData:
-    """Detector-specific informations."""
+    """Planck detector inputs and derived detector-specific arrays.
+
+    Parameters
+    ----------
+    detector_set : str
+        Detector family to load.
+    path_to_blms : str
+        Directory containing the beam `blm` files.
+    path_to_pol_moments : str
+        Directory containing the polarization moment maps.
+    path_to_rimo : str
+        Path to the RIMO file.
+    mmax_beam : int
+        Maximum beam azimuthal mode.
+    lmax : int
+        Maximum multipole used in the calculations.
+    ref_frame_beams : str
+        Reference frame used for beam polarization angles.
+    ref_frame_polmoments : str
+        Reference frame used for polarization moments.
+    blm_polar_efficiency : str
+        Polarization-efficiency model for the beams.
+    mapmaking_polar_efficiency : str
+        Polarization-efficiency model for mapmaking.
+    detector_subset : int | None, optional
+        Optional detector subset selector.
+    """
 
     detector_set: str
     path_to_blms: str
@@ -128,11 +154,18 @@ class PlanckDetectorsData:
 
 @dataclass(slots=True)
 class SkyData:
-    """Sky-specific inputs that can be reused across detector sets."""
+    """Sky harmonic inputs reused across detector sets.
+
+    Parameters
+    ----------
+    nside : int
+        HEALPix resolution of the sky maps.
+    lmax : int
+        Maximum multipole used in harmonic space.
+    """
 
     nside: int
     lmax: int
-    temperature_only: bool = False
 
     alms_dict: Any = field(default_factory=dict)
 
@@ -142,7 +175,23 @@ class SkyData:
         path_to_cl: str,
         seed_cmb: int | None = None,
         apply_pixel_window: bool = False,
+        pol: bool = True,
     ):
+        """Generate and store CMB alms.
+
+        Parameters
+        ----------
+        detector_names : sequence
+            Detector names used to build the alms dictionary.
+        path_to_cl : str
+            Path to the input power spectrum file.
+        seed_cmb : int | None, optional
+            Random seed used for the CMB realization.
+        apply_pixel_window : bool, optional
+            Whether to apply the HEALPix pixel window.
+        pol : bool, optional
+            Whether to generate polarized alms.
+        """
         alms_dict = generate_cmb_alms(
             det_names=detector_names,
             path_to_cl=path_to_cl,
@@ -150,16 +199,28 @@ class SkyData:
             nside=self.nside,
             seed_cmb=seed_cmb,
             apply_pixel_window=apply_pixel_window,
-            polarized=not self.temperature_only,
+            polarized=pol,
         )
         self.alms_dict = alms_dict
 
     def set_alms_dict(self, alms_dict):
-        """Set the alms_dict attribute."""
+        """Replace the stored alms dictionary.
+
+        Parameters
+        ----------
+        alms_dict : dict
+            Dictionary of detector alms keyed by detector name.
+        """
         self.alms_dict = alms_dict
 
     def deconvolve_circular_gaussian(self, fwhm_arcmim: float):
-        """Deconvolve the circular Gaussian."""
+        """Deconvolve the stored alms with a circular Gaussian beam.
+
+        Parameters
+        ----------
+        fwhm_arcmim : float
+            Beam full width at half maximum, in arcminutes.
+        """
         Bl = hp.sphtfunc.gauss_beam(
             np.deg2rad(fwhm_arcmim / 60), lmax=self.lmax, pol=True
         )
@@ -169,7 +230,13 @@ class SkyData:
             hp.sphtfunc.almxfl(self.alms_dict[key][2], 1 / Bl[:, 2], inplace=True)
 
     def convolve_circular_gaussian(self, fwhm_arcmim: float):
-        """Convolve the alms with a circular Gaussian beam."""
+        """Convolve the stored alms with a circular Gaussian beam.
+
+        Parameters
+        ----------
+        fwhm_arcmim : float
+            Beam full width at half maximum, in arcminutes.
+        """
         Bl = hp.sphtfunc.gauss_beam(
             np.deg2rad(fwhm_arcmim / 60), lmax=self.lmax, pol=True
         )
@@ -188,7 +255,6 @@ class SkyData:
         return SkyData(
             nside=self.nside,
             lmax=self.lmax,
-            temperature_only=self.temperature_only,
             alms_dict={
                 key: self.alms_dict[key] + other.alms_dict[key]
                 for key in self.alms_dict.keys()
@@ -205,7 +271,6 @@ class SkyData:
         return SkyData(
             nside=self.nside,
             lmax=self.lmax,
-            temperature_only=self.temperature_only,
             alms_dict={
                 key: self.alms_dict[key] - other.alms_dict[key]
                 for key in self.alms_dict.keys()
@@ -221,11 +286,29 @@ def compute_convolved_planck_map(
     return_inverse_mapmaking_matrix: bool = False,
     condition_number_threshold: float | None = None,
 ):
+    """Compute the convolved Planck map from sky and detector inputs.
+
+    Parameters
+    ----------
+    sky_data : SkyData
+        Sky harmonic data used as input.
+    detector_data : PlanckDetectorsData
+        Detector beam and mapmaking inputs.
+    output_directory : Path | str | None, optional
+        Directory where the output map is saved as a NumPy file.
+    inverse_mapmaking_matrix : np.ndarray | None, optional
+        Optional precomputed inverse mapmaking matrix.
+    return_inverse_mapmaking_matrix : bool, optional
+        Whether to return the inverse mapmaking matrix.
+    condition_number_threshold : float | None, optional
+        Threshold used to mask ill-conditioned pixels.
+    """
 
     assert sky_data.lmax == detector_data.lmax, "The blms and alms lmax do not match"
     assert list(sky_data.alms_dict.keys()) == detector_data.detector_names, (
         "The alms_dict keys do not match the detector names"
     )
+
     spin_syst_dict = sm_beam_conv.get_systematic_maps_from_alms_blms(
         sky_data.alms_dict,
         detector_data.blms_dict,

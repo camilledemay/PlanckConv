@@ -14,6 +14,7 @@ from PlanckConv.external_qp_planck import (
     get_angles,
     get_blms_fits,
 )
+
 # ----------------------------------------------------------------------
 # Load Planck hit‑map moments and build spin maps
 
@@ -26,7 +27,9 @@ def load_hmap_planck_1_det(
     momfile = os.path.join(path_to_moments, f"polmoments_{det_name}.fits")
 
     if spin_ref == "Pxx":
-        myangle = -get_angles(RIMO, [det_name], ref="Dxx")[0]
+        myangle = -get_angles(RIMO, [det_name], ref="Dxx")[
+            0
+        ]  # rotation so that h-maps of the same det pair are the same
     else:
         myangle = 0
 

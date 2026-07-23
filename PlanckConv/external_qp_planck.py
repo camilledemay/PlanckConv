@@ -1,11 +1,14 @@
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Sequence, Union
+
 import numpy as np
 from astropy.io import fits
-from typing import Sequence, Optional,Any,Union,Dict,List
+
 # The following function are taken from the qp_planck repo: https://github.com/paganol/qp_planck/tree/main
 
 #: Conversion factor from degrees to radians.
 degree: float = np.pi / 180.0
+
 
 def get_angles(RIMO, shorts, ref="Dxx"):
     """Return detector angles (in radians) for a list of short names."""
@@ -22,6 +25,7 @@ def get_angles(RIMO, shorts, ref="Dxx"):
             raise RuntimeError(f"Unknown referential: {ref}")
     angles = np.radians(angles)
     return angles
+
 
 @dataclass
 class DetectorData:
@@ -67,12 +71,12 @@ class DetectorData:
     fwhm: float
 
 
-
-
 #: Namespace object to mimic 'qa.mult' used in legacy code.
 
 #: Bore-sight rotation quaternion. Set to identity by default (no extra rotation).
 SPINROT: np.ndarray = np.array([0.0, 0.0, 0.0, 1.0])
+
+
 def load_RIMO(path: str, comm: Optional[Any] = None) -> dict[str, DetectorData]:
     """
     Load and (optionally) broadcast the reduced instrument model (RIMO).
@@ -96,8 +100,6 @@ def load_RIMO(path: str, comm: Optional[Any] = None) -> dict[str, DetectorData]:
     """
     if comm is not None:
         comm.Barrier()
-
-
 
     RIMO: Dict[str, DetectorData] = {}
     is_root = comm is None or getattr(comm, "rank", 0) == 0
@@ -139,7 +141,6 @@ def load_RIMO(path: str, comm: Optional[Any] = None) -> dict[str, DetectorData]:
     if comm is not None:
         # Broadcast to all ranks
         RIMO = comm.bcast(RIMO, root=0)
-
 
     return RIMO
 
@@ -480,6 +481,8 @@ def get_blms_fits(fitsfile, lmax=None, mmax=None, isbalm=True, renorm=True):
             for kb in range(ndb):
                 ret[l, :, kb] *= 1 / (1 * np.sqrt((2 * l + 1)))
     return ret
+
+
 # ----------------------------------------------------------------------
 # Detector weights
 # ----------------------------------------------------------------------

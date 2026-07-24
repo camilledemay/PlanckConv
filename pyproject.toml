@@ -9,6 +9,7 @@ dependencies = [
     "pixell>=0.31.10",
     "ruff>=0.15.21",
     "smarties",
+    "ty>=0.0.63",
 ]
 
 [tool.uv.sources]

@@ -118,7 +118,7 @@ class PlanckDetectorsData:
 
     def _set_pol_angles_rad(self):
         pol_angles_rad = get_angles(
-            RIMO=self.rimo, shorts=self.detector_names, ref=self.ref_frame_beams
+            RIMO=self.rimo, shorts=self.detector_names, ref= "Dxx", #Smarties want the blms to be defined in the Dxx frame
         )
         self.pol_angles_rad = pol_angles_rad
 
@@ -130,6 +130,7 @@ class PlanckDetectorsData:
             lmax=self.lmax,
             mmax_beam=self.mmax_beam,
             pol_ang_rad=self.pol_angles_rad,
+            blms_ref=self.ref_frame_beams,
             polarisation_efficiencies=self.rho_blm,
         )
         self.blms_dict = blms_dict

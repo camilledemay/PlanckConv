@@ -15,10 +15,22 @@ from PlanckConv.external_qp_planck import (
     get_blms_fits,
 )
 
+
+def rotate_alms(alms, rot_angle_rad, lmax, mmax):
+    """Apply rotation to alm arrays."""
+    alms = alms.copy()
+    for m in range(0, mmax + 1, 2):
+        if m == 0:
+            continue
+        f_rot = np.cos(m * rot_angle_rad) + 1j * np.sin(m * rot_angle_rad)
+        idx_start = hp.Alm.getidx(lmax, m, m)
+        idx_end = hp.Alm.getidx(lmax, lmax, m) + 1
+        alms[:, idx_start:idx_end] *= f_rot
+    return alms
+
+
 # ----------------------------------------------------------------------
 # Load Planck hit‑map moments and build spin maps
-
-
 def load_hmap_planck_1_det(
     path_to_moments, det_name, smax, spin_ref, RIMO, dtype=np.complex128
 ):
@@ -208,6 +220,7 @@ def get_Planck_det_blms(
     lmax,
     mmax_beam,
     pol_ang_rad,
+    blms_ref,
     polarisation_efficiencies,
 ):
     blms_dict = {}
@@ -221,6 +234,7 @@ def get_Planck_det_blms(
             isbalm=False,
             renorm=True,
             polang=pol_ang_rad[idet],
+            blms_ref=blms_ref,
             poleff=polarisation_efficiency,
         )
         blms *= 1 / np.sqrt(4 * np.pi)  # renormalize to match smarties convention
@@ -244,46 +258,56 @@ def convert_Planck_blms_to_hp_format(blms, lmax, mmax):
 
 
 def load_Planck_blms_copolar(
-    fitsfile, lmax, mmax, polang=0, poleff=1, isbalm=False, renorm=True
+    fitsfile, lmax, mmax, polang=0, blms_ref="Dxx", poleff=1, isbalm=False, renorm=True
 ):
     """Load the beam harmonic coefficients from a FITS file and convert them to the healpy format, if they do not contain polarization assumes copolarity."""
     blms_grasp = get_blms_fits(
         fitsfile, lmax=lmax, mmax=mmax, isbalm=isbalm, renorm=renorm
     )
-    if blms_grasp.shape[2] == 3:
+    if blms_grasp.shape[2] == 1:
+        print(f"Blms in {fitsfile} do not contain polarization, assuming copolarity.")
+
+        blms_grasp_temp = blms_grasp
+        blms_grasp = np.zeros((3, hp.Alm.getsize(lmax, mmax)), dtype=np.complex128)
+
+        def get_blm_lm(l: int, m: int):
+            # Return b_lm
+            if abs(m) > l or abs(m) > mmax:
+                return 0.0j
+            if m >= 0:
+                return blms_grasp_temp[l, m, 0]
+            else:
+                mp = -m
+                return ((-1) ** mp) * np.conjugate(blms_grasp_temp[l, mp, 0])
+
+        phase_p2 = np.exp(2j * polang)
+        phase_m2 = np.exp(-2j * polang)
+
+        for l in range(lmax + 1):
+            for m in range(min(l, mmax) + 1):
+                idx_m = hp.Alm.getidx(lmax, l, m)
+                blms_grasp[0, idx_m] = blms_grasp_temp[l, m, 0]
+
+                b_m_plus_2 = phase_p2 * get_blm_lm(l, m + 2)
+                b_m_minus_2 = phase_m2 * get_blm_lm(l, m - 2)
+
+                blms_grasp[1, idx_m] = (
+                    -0.5 * (b_m_plus_2 + b_m_minus_2) * poleff
+                )  # blm E
+                blms_grasp[2, idx_m] = (
+                    0.5j * (b_m_plus_2 - b_m_minus_2) * poleff
+                )  # blm B
+
+    elif blms_grasp.shape[2] == 3:
         print(f"Blms in {fitsfile} contains polarization.")
         blms_grasp = convert_Planck_blms_to_hp_format(
             blms_grasp, lmax, mmax
         )  # do not apply poleff to already polarized blms
-        return blms_grasp
+        if blms_ref == "Pxx":
+            # rotating the blms so that they are defined in Dxx
+            blms_grasp = rotate_alms(blms_grasp, -polang, lmax, mmax)
+
     else:
-        print(f"Blms in {fitsfile} do not contain polarization, assuming copolarity.")
-
-        blms_grasp_temp = blms_grasp
-    blms_grasp = np.zeros((3, hp.Alm.getsize(lmax, mmax)), dtype=np.complex128)
-
-    def get_blm_lm(l: int, m: int):
-        # Return b_lm
-        if abs(m) > l or abs(m) > mmax:
-            return 0.0j
-        if m >= 0:
-            return blms_grasp_temp[l, m, 0]
-        else:
-            mp = -m
-            return ((-1) ** mp) * np.conjugate(blms_grasp_temp[l, mp, 0])
-
-    phase_p2 = np.exp(2j * polang)
-    phase_m2 = np.exp(-2j * polang)
-
-    for l in range(lmax + 1):
-        for m in range(min(l, mmax) + 1):
-            idx_m = hp.Alm.getidx(lmax, l, m)
-            blms_grasp[0, idx_m] = blms_grasp_temp[l, m, 0]
-
-            b_m_plus_2 = phase_p2 * get_blm_lm(l, m + 2)
-            b_m_minus_2 = phase_m2 * get_blm_lm(l, m - 2)
-
-            blms_grasp[1, idx_m] = -0.5 * (b_m_plus_2 + b_m_minus_2) * poleff  # blm E
-            blms_grasp[2, idx_m] = 0.5j * (b_m_plus_2 - b_m_minus_2) * poleff  # blm B
+        raise (ValueError)
 
     return blms_grasp

@@ -4,7 +4,8 @@ This code enables efficient simulation of beam-convolved Planck maps from arbitr
 - Planck beam harmonic coefficients (`blms`) 
 - Planck polmoments
 
-The required data files can be downloaded here: 
+The polmoments and `blms` are available in NERSC:  `/global/cfs/cdirs/cmb/data/planck2020/npipe/aux`
+
 
 This is a wrapper around the Smarties package ([https://github.com/simonsobs/smarties](https://github.com/simonsobs/smarties)), the underlying formalism is described here [] and here [].
 

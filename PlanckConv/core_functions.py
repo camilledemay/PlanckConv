@@ -267,7 +267,7 @@ def load_Planck_blms_copolar(
     if blms_grasp.shape[2] == 1:
         print(f"Blms in {fitsfile} do not contain polarization, assuming copolarity.")
 
-        blms_grasp_temp = blms_grasp
+        blms_grasp_temp = blms_grasp.copy()
         blms_grasp = np.zeros((3, hp.Alm.getsize(lmax, mmax)), dtype=np.complex128)
 
         def get_blm_lm(l: int, m: int):

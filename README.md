@@ -10,8 +10,16 @@ This is a wrapper around the Smarties package ([https://github.com/simonsobs/sma
 
 For practical usage, you can refer to the Jupyter notebook.
 
-You may want to compile ducc from source to speed-up the map2alm transforms, see  https://gitlab.mpcdf.mpg.de/mtr/ducc
 
 # Installation
 
-To install this package, you can clone this repo and run ```pip install path\to\repo\dir```. Alternatively, if you use uv you can run ```uv add "PlanckConv @ https://github.com/camilledemay/PlanckConv"```.
+To install this package, clone this repository and run 
+```
+pip install path\to\repo\dir
+``` 
+Alternatively, if you use uv you can run 
+```
+uv add "PlanckConv @ https://github.com/camilledemay/PlanckConv"
+```
+
+You may want to compile ducc from source to speed-up the map2alm transforms, see  https://gitlab.mpcdf.mpg.de/mtr/ducc

@@ -14,4 +14,4 @@ You may want to compile ducc from source to speed-up the map2alm transforms, see
 
 # Installation
 
-To install this package, you can clone this repo and run ```pip install path\to\repo\dir``` or ```uv add path\to\repo\dir``` , if you use uv you can also run simply run ```uv add "PlanckConv @ https://github.com/camilledemay/PlanckConv"```.
+To install this package, you can clone this repo and run ```pip install path\to\repo\dir```. Alternatively, if you use uv you can run ```uv add "PlanckConv @ https://github.com/camilledemay/PlanckConv"```.

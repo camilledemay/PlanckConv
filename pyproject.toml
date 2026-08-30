@@ -8,12 +8,12 @@ dependencies = [
     "notebook>=7.6.1",
     "pixell>=0.31.10",
     "ruff>=0.15.21",
-    "smarties",
+    "smarties @ git+https://github.com/camilledemay/smarties-beam-convolution",
     "ty>=0.0.63",
 ]
 
-[tool.uv.sources]
-smarties = { git = "https://github.com/camilledemay/smarties-beam-convolution" }
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [build-system]
 requires = ["hatchling"]

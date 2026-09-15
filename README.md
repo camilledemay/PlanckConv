@@ -20,7 +20,7 @@ pip install path\to\repo\dir
 ``` 
 Alternatively, if you use uv you can run 
 ```
-uv add "PlanckConv @ https://github.com/camilledemay/PlanckConv"
+uv add "PlanckConv @ git+https://github.com/camilledemay/PlanckConv"
 ```
 
 You may want to compile ducc from source to speed-up the map2alm transforms, see  https://gitlab.mpcdf.mpg.de/mtr/ducc

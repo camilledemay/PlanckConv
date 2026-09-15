@@ -4,9 +4,10 @@ from typing import Any
 
 import healpy as hp
 import numpy as np
-import smarties.systematics.beam_convolution as sm_beam_conv
+import smarties.systematics.convolution as sm_beam_conv
 from smarties.hn import Spin_maps
-from smarties.tools import transform_array_maps_into_spin_maps
+from smarties.utils.tools import transform_array_maps_into_spin_maps
+
 
 from PlanckConv.core_functions import (
     build_Planck_h_maps_dictionnary,

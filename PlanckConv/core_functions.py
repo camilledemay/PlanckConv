@@ -8,7 +8,7 @@ import healpy as hp
 import numpy as np
 from smarties.hn import Spin_maps
 from smarties.mapmaking import FrameworkSystematics
-from smarties.systematics.beam_convolution import convert_alm_spin_to_plusminus
+import smarties.systematics.convolution as sm_beam_conv
 
 from PlanckConv.external_qp_planck import (
     get_angles,

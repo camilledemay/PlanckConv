@@ -324,10 +324,7 @@ def compute_convolved_planck_map(
     )
 
     spin_syst = Spin_maps.from_dictionary(spin_syst_dict)
-    print(np.max(np.abs(spin_syst[4])))
-    print(np.max(np.abs(spin_syst[3])))
-    print(np.max(np.abs(spin_syst[2])))
-    print(np.max(np.abs(spin_syst[4])))
+
     empty_sky = transform_array_maps_into_spin_maps(
         np.zeros((3, hp.nside2npix(sky_data.nside))), n_stokes_output=3
     )

@@ -1,19 +1,22 @@
 #!/usr/bin/env python
 """Core functions for Smarties map-making and QuickPol beam matrices."""
 
+import logging
 import os
 import time
 
 import healpy as hp
 import numpy as np
+import smarties.systematics.convolution as sm_beam_conv
 from smarties.hn import Spin_maps
 from smarties.mapmaking import FrameworkSystematics
-import smarties.systematics.convolution as sm_beam_conv
 
 from PlanckConv.external_qp_planck import (
     get_angles,
     get_blms_fits,
 )
+
+module_logger = logging.getLogger(__name__)
 
 
 def rotate_alms(alms, rot_angle_rad, lmax, mmax):
@@ -50,7 +53,7 @@ def load_hmap_planck_1_det(
     spins = hp.read_map(momfile, None)
     h_maps = np.zeros((smax + 1, hit.shape[0]), dtype=dtype)
 
-    print(f"Loaded hits+spins in {time.time() - t1:.2f}s", flush=True)
+    module_logger.info(f"Loaded hits & spins in {time.time() - t1:.2f}s")
 
     for s in range(smax + 1):
         if s == 0:
@@ -70,14 +73,14 @@ def build_Planck_h_maps_dictionnary(
     h_maps_list = []
     hits_list = []
     for det in det_names:
+        module_logger.info(f"Loading h-maps of detector {det}")
         h_maps = load_hmap_planck_1_det(moments_dir, det, smax, spin_ref, RIMO, dtype)
         h_maps_list.append(h_maps)
         hits_list.append(h_maps[0].real)
-        assert np.all(h_maps[0].real > 0), "minute papillion"
+        assert np.all(h_maps[0].real > 0), "h_maps[0] has non-positive values"
     hits_arr = np.array(hits_list)
 
     for idet, det in enumerate(det_names):
-        print(f"Weight of det {det}: {detector_weights[det[:-1]]}")
         hits_arr[idet] *= detector_weights[det[:-1]]  # 100-1a -> 100-1
     total_hits = hits_arr.sum(axis=0)
     mask_hits = (total_hits > 0).astype(np.int8)
@@ -125,7 +128,7 @@ def generate_cmb_alms(
                 cls *= hp.pixwin(nside, lmax=lmax, pol=True) ** 2
     alms = hp.synalm(cls=cls, lmax=lmax, new=True)
     if alms.shape[0] == 1:
-        print("Alms only contain temperature, padding polarization with zeros")
+        module_logger.info("Alms only contain temperature, padding polarization with zeros")
         alms = np.atleast_2d(alms)
         alms = np.pad(alms, ((0, 2), (0, 0)), mode="constant", constant_values=0)
     if not polarized:
@@ -192,15 +195,10 @@ def run_smarties_mapmaking(
     if condition_number_mask:
         cond_number = np.linalg.cond(inverse_mapmaking_matrix)
         cond_mask = cond_number < condition_number_threshold
-        print(cond_mask)
-        print(mask_hits)
-        print(cond_mask.shape)
-        print(final_I.shape)
         full_mask = cond_mask & mask_hits.astype(bool)
-        print(full_mask.shape)
 
-        print(
-            f"Maximum value of the condition number: {np.max(cond_number)}", flush=True
+        module_logger.info(
+            f"Maximum value of the condition number: {np.max(cond_number)}"
         )
     else:
         full_mask = mask_hits.astype(bool)
@@ -265,7 +263,7 @@ def load_Planck_blms_copolar(
         fitsfile, lmax=lmax, mmax=mmax, isbalm=isbalm, renorm=renorm
     )
     if blms_grasp.shape[2] == 1:
-        print(f"Blms in {fitsfile} do not contain polarization, assuming copolarity.")
+        module_logger.info(f"Blms in {fitsfile} do not contain polarization, assuming copolarity.")
 
         blms_grasp_temp = blms_grasp.copy()
         blms_grasp = np.zeros((3, hp.Alm.getsize(lmax, mmax)), dtype=np.complex128)
@@ -299,7 +297,7 @@ def load_Planck_blms_copolar(
                 )  # blm B
 
     elif blms_grasp.shape[2] == 3:
-        print(f"Blms in {fitsfile} contains polarization.")
+        module_logger.info(f"Blms in {fitsfile} contains polarization.")
         blms_grasp = convert_Planck_blms_to_hp_format(
             blms_grasp, lmax, mmax
         )  # do not apply poleff to already polarized blms

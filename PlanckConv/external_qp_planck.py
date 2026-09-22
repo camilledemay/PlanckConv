@@ -1,8 +1,12 @@
+import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 from astropy.io import fits
+
+logger = logging.getLogger(__name__)
+
 
 # The following function are taken from the qp_planck repo: https://github.com/paganol/qp_planck/tree/main
 
@@ -105,7 +109,7 @@ def load_RIMO(path: str, comm: Optional[Any] = None) -> dict[str, DetectorData]:
     is_root = comm is None or getattr(comm, "rank", 0) == 0
 
     if is_root:
-        print(f"Loading RIMO from {path}", flush=True)
+        logger.info(f"Loading RIMO from {path}")
         hdulist = fits.open(path, "readonly")
 
         data = hdulist[1].data
@@ -410,7 +414,7 @@ def list_planck(
         if isinstance(detset, str) and detset + "a" in hfidets:
             return [detset + "a", detset + "b"]  # type: ignore[return-value]
         # All other cases
-        print("ERROR: unknown detector set: ", detset)
+        logger.error(f"ERROR: unknown detector set: {detset}")
         return -1
 
     # Build detector name list for LFI / HFI cases above
@@ -446,17 +450,14 @@ def get_blms_fits(fitsfile, lmax=None, mmax=None, isbalm=True, renorm=True):
         polbeam_in = True
         ndb = 3
     except Exception:
-        print(
+        logger.warning(
             "#ff0000  ",
             "WARNING: Polarized Blm not found in %s" % (fitsfile),
             "\x1b[0m",
-            flush=True,
         )
     ls = np.array(np.floor(np.sqrt(Tix - 1)), dtype=np.int64)
     ms = Tix - ls * ls - ls - 1
-    print(
-        f"maximum l in file: {np.max(ls)}, maximum m in file: {np.max(ms)}", flush=True
-    )
+    logger.info(f"maximum l in file: {np.max(ls)}, maximum m in file: {np.max(ms)}")
     if lmax is None:
         lmax = np.max(ls)
     if mmax is None:
@@ -472,10 +473,10 @@ def get_blms_fits(fitsfile, lmax=None, mmax=None, isbalm=True, renorm=True):
             (Gre[idxs] + Cim[idxs]) + 1j * (Gim[idxs] - Cre[idxs])
         )
     if renorm:
-        print("Renormalizing the beam")
+        logger.info("Renormalizing the beam")
         ret /= ret[0, 0, 0]
     if isbalm:
-        print("Converting from balm")
+        logger.info("Converting from balm")
         # file is balm, so renormalize and scale.
         for l in range(lmax + 1):
             for kb in range(ndb):

@@ -7,16 +7,16 @@ import time
 
 import healpy as hp
 import numpy as np
-import smarties.systematics.convolution as sm_beam_conv
 from smarties.hn import Spin_maps
 from smarties.mapmaking import FrameworkSystematics
+from smarties.systematics.convolution import convert_alm_spin_to_plusminus
 
 from PlanckConv.external_qp_planck import (
     get_angles,
     get_blms_fits,
 )
 
-module_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def rotate_alms(alms, rot_angle_rad, lmax, mmax):
@@ -53,7 +53,7 @@ def load_hmap_planck_1_det(
     spins = hp.read_map(momfile, None)
     h_maps = np.zeros((smax + 1, hit.shape[0]), dtype=dtype)
 
-    module_logger.info(f"Loaded hits & spins in {time.time() - t1:.2f}s")
+    logger.info(f"Loaded hits & spins in {time.time() - t1:.2f}s")
 
     for s in range(smax + 1):
         if s == 0:
@@ -73,7 +73,7 @@ def build_Planck_h_maps_dictionnary(
     h_maps_list = []
     hits_list = []
     for det in det_names:
-        module_logger.info(f"Loading h-maps of detector {det}")
+        logger.info(f"Loading h-maps of detector {det}")
         h_maps = load_hmap_planck_1_det(moments_dir, det, smax, spin_ref, RIMO, dtype)
         h_maps_list.append(h_maps)
         hits_list.append(h_maps[0].real)
@@ -128,7 +128,7 @@ def generate_cmb_alms(
                 cls *= hp.pixwin(nside, lmax=lmax, pol=True) ** 2
     alms = hp.synalm(cls=cls, lmax=lmax, new=True)
     if alms.shape[0] == 1:
-        module_logger.info("Alms only contain temperature, padding polarization with zeros")
+        logger.info("Alms only contain temperature, padding polarization with zeros")
         alms = np.atleast_2d(alms)
         alms = np.pad(alms, ((0, 2), (0, 0)), mode="constant", constant_values=0)
     if not polarized:
@@ -197,9 +197,7 @@ def run_smarties_mapmaking(
         cond_mask = cond_number < condition_number_threshold
         full_mask = cond_mask & mask_hits.astype(bool)
 
-        module_logger.info(
-            f"Maximum value of the condition number: {np.max(cond_number)}"
-        )
+        logger.info(f"Maximum value of the condition number: {np.max(cond_number)}")
     else:
         full_mask = mask_hits.astype(bool)
     tqu[0, full_mask] = final_I[full_mask]
@@ -263,7 +261,9 @@ def load_Planck_blms_copolar(
         fitsfile, lmax=lmax, mmax=mmax, isbalm=isbalm, renorm=renorm
     )
     if blms_grasp.shape[2] == 1:
-        module_logger.info(f"Blms in {fitsfile} do not contain polarization, assuming copolarity.")
+        logger.info(
+            f"Blms in {fitsfile} do not contain polarization, assuming copolarity."
+        )
 
         blms_grasp_temp = blms_grasp.copy()
         blms_grasp = np.zeros((3, hp.Alm.getsize(lmax, mmax)), dtype=np.complex128)
@@ -297,7 +297,7 @@ def load_Planck_blms_copolar(
                 )  # blm B
 
     elif blms_grasp.shape[2] == 3:
-        module_logger.info(f"Blms in {fitsfile} contains polarization.")
+        logger.info(f"Blms in {fitsfile} contains polarization.")
         blms_grasp = convert_Planck_blms_to_hp_format(
             blms_grasp, lmax, mmax
         )  # do not apply poleff to already polarized blms

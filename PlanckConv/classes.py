@@ -146,6 +146,7 @@ class PlanckDetectorsData:
         h_maps_dict, _ = build_Planck_h_maps_dictionnary(
             det_names=self.detector_names,
             moments_dir=self.path_to_pol_moments,
+            detector_set=self.detector_set,
             smax=self.mmax_beam + 2,
             spin_ref=self.ref_frame_polmoments,
             RIMO=self.rimo,

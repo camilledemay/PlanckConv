@@ -35,11 +35,17 @@ def rotate_alms(alms, rot_angle_rad, lmax, mmax):
 # ----------------------------------------------------------------------
 # Load Planck hit‑map moments and build spin maps
 def load_hmap_planck_1_det(
-    path_to_moments, det_name, smax, spin_ref, RIMO, dtype=np.complex128
+    path_to_moments, det_name,detector_set, smax, spin_ref, RIMO, dtype=np.complex128
 ):
     """Load the Planck h-maps of one detector and rotate it so that they follow the same conventiona as smarties."""
-    hitfile = os.path.join(path_to_moments, f"polmoments_{det_name}_hits.fits")
-    momfile = os.path.join(path_to_moments, f"polmoments_{det_name}.fits")
+    if detector_set in ["30A", "30B", "44A", "44B"]:
+        # These frequencies could not be split by detector
+        subset = detector_set[-1]
+        hitfile = os.path.join(path_to_moments, f"polmoments_{det_name}_hits.{subset}.fits")
+        momfile = os.path.join(path_to_moments, f"polmoments_{det_name}.{subset}.fits")
+    else:
+        hitfile = os.path.join(path_to_moments, f"polmoments_{det_name}_hits.fits")
+        momfile = os.path.join(path_to_moments, f"polmoments_{det_name}.fits")
 
     if spin_ref == "Pxx":
         myangle = -get_angles(RIMO, [det_name], ref="Dxx")[
@@ -67,14 +73,14 @@ def load_hmap_planck_1_det(
 
 
 def build_Planck_h_maps_dictionnary(
-    det_names, moments_dir, smax, spin_ref, RIMO, dtype, detector_weights
+    det_names, moments_dir,detector_set, smax, spin_ref, RIMO, dtype, detector_weights
 ):
     """Load all detectors and build h_n_spin_dict up to a spin smax."""
     h_maps_list = []
     hits_list = []
     for det in det_names:
         logger.info(f"Loading h-maps of detector {det}")
-        h_maps = load_hmap_planck_1_det(moments_dir, det, smax, spin_ref, RIMO, dtype)
+        h_maps = load_hmap_planck_1_det(moments_dir, det,detector_set, smax, spin_ref, RIMO, dtype)
         h_maps_list.append(h_maps)
         hits_list.append(h_maps[0].real)
         assert np.all(h_maps[0].real > 0), "h_maps[0] has non-positive values"

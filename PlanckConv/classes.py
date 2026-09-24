@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,8 @@ from PlanckConv.external_qp_planck import (
     list_planck,
     load_RIMO,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -324,11 +327,19 @@ def compute_convolved_planck_map(
         mmax_beam=detector_data.mmax_beam,
         shape_pixels_output=(hp.nside2npix(sky_data.nside),),
     )
-    mask_hits=detector_data.h_maps_dict[0] > 0
-    spin_syst = Spin_maps.from_dictionary(spin_syst_dict)
+    mask_hits = detector_data.h_maps_dict[0] > 0
+    if np.min(mask_hits) == 0:
+        logger.warning(
+            "Some pixels have no hits. The output map will be masked accordingly."
+        )
+    # Generate the mask for the hits
+    spin_syst = Spin_maps.from_dictionary(
+        {spin: spin_syst_dict[spin][mask_hits != 0] for spin in spin_syst_dict}
+    )
+    # spin_syst = Spin_maps.from_dictionary(spin_syst_dict)
 
     empty_sky = transform_array_maps_into_spin_maps(
-        np.zeros((3,mask_hits.shape[0])), n_stokes_output=3
+        np.zeros((3, mask_hits.shape[0])), n_stokes_output=3
     )
     output = run_smarties_mapmaking(
         h_n_spin_dict=detector_data.h_maps_dict,

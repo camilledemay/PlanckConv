@@ -4,10 +4,9 @@ from typing import Any
 
 import healpy as hp
 import numpy as np
-import smarties.systematics.convolution as sm_beam_conv
 from smarties.hn import Spin_maps
+from smarties.sky.convolution import get_beam_convolution_spins_maps
 from smarties.utils.tools import transform_array_maps_into_spin_maps
-
 
 from PlanckConv.core_functions import (
     build_Planck_h_maps_dictionnary,
@@ -119,7 +118,9 @@ class PlanckDetectorsData:
 
     def _set_pol_angles_rad(self):
         pol_angles_rad = get_angles(
-            RIMO=self.rimo, shorts=self.detector_names, ref= "Dxx", #Smarties want the blms to be defined in the Dxx frame
+            RIMO=self.rimo,
+            shorts=self.detector_names,
+            ref="Dxx",  # Smarties want the blms to be defined in the Dxx frame
         )
         self.pol_angles_rad = pol_angles_rad
 
@@ -307,20 +308,20 @@ def compute_convolved_planck_map(
     """
 
     assert sky_data.lmax == detector_data.lmax, "The blms and alms lmax do not match"
+    assert sky_data.nside == hp.npix2nside(detector_data.h_maps_dict[0].shape[1]), (
+        "The h_maps and alms nside do not match"
+    )
     assert list(sky_data.alms_dict.keys()) == detector_data.detector_names, (
         "The alms_dict keys do not match the detector names"
     )
 
-    spin_syst_dict = sm_beam_conv.get_systematic_maps_from_alms_blms(
-        sky_data.alms_dict,
-        detector_data.blms_dict,
-        np.ones(len(detector_data.detector_names)),
-        detector_data.detector_names,
-        sky_data.lmax,
-        detector_data.mmax_beam,
-        sky_data.nside,
-        detector_data.pol_angles_rad,
-        substract_gaussian_beam=False,
+    spin_syst_dict = get_beam_convolution_spins_maps(
+        alms=sky_data.alms_dict,
+        blms=detector_data.blms_dict,
+        det_names=detector_data.detector_names,
+        lmax=sky_data.lmax,
+        mmax_beam=detector_data.mmax_beam,
+        shape_pixels_output=(hp.nside2npix(sky_data.nside),),
     )
 
     spin_syst = Spin_maps.from_dictionary(spin_syst_dict)

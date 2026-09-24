@@ -9,7 +9,7 @@ import healpy as hp
 import numpy as np
 from smarties.hn import Spin_maps
 from smarties.mapmaking import FrameworkSystematics
-from smarties.systematics.convolution import convert_alm_spin_to_plusminus
+from smarties.utils.harmonics import convert_alm_spin_to_plusminus
 
 from PlanckConv.external_qp_planck import (
     get_angles,

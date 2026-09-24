@@ -9,6 +9,7 @@ dependencies = [
     "pixell>=0.31.10",
     "ruff>=0.15.21",
     "smarties @ git+https://github.com/camilledemay/smarties-beam-convolution",
+    "toml>=0.10.2",
     "ty>=0.0.63",
 ]
 

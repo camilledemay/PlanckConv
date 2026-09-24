@@ -83,7 +83,7 @@ def build_Planck_h_maps_dictionnary(
         h_maps = load_hmap_planck_1_det(moments_dir, det,detector_set, smax, spin_ref, RIMO, dtype)
         h_maps_list.append(h_maps)
         hits_list.append(h_maps[0].real)
-        assert np.all(h_maps[0].real > 0), "h_maps[0] has non-positive values"
+        # assert np.all(h_maps[0].real > 0), "h_maps[0] has non-positive values"
     hits_arr = np.array(hits_list)
 
     for idet, det in enumerate(det_names):

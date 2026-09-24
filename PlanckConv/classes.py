@@ -324,15 +324,15 @@ def compute_convolved_planck_map(
         mmax_beam=detector_data.mmax_beam,
         shape_pixels_output=(hp.nside2npix(sky_data.nside),),
     )
-
+    mask_hits=detector_data.h_maps_dict[0] > 0
     spin_syst = Spin_maps.from_dictionary(spin_syst_dict)
 
     empty_sky = transform_array_maps_into_spin_maps(
-        np.zeros((3, hp.nside2npix(sky_data.nside))), n_stokes_output=3
+        np.zeros((3,mask_hits.shape[0])), n_stokes_output=3
     )
     output = run_smarties_mapmaking(
         h_n_spin_dict=detector_data.h_maps_dict,
-        mask_hits=np.ones(hp.nside2npix(sky_data.nside)),
+        mask_hits=mask_hits,
         spin_sky_maps=empty_sky,
         spin_systematics_maps=spin_syst,
         lmax=sky_data.lmax,

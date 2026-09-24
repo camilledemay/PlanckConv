@@ -77,6 +77,7 @@ class PlanckDetectorsData:
     pol_angles_rad: Any = field(init=False)
     blms_dict: Any = field(init=False)
     h_maps_dict: Any = field(init=False)
+    mask_hits: Any = field(init=False)
 
     def __post_init__(self):
         self.rimo = load_RIMO(self.path_to_rimo)
@@ -146,8 +147,8 @@ class PlanckDetectorsData:
     def fill_h_maps_dict(self, dtype: type = np.complex128):
         if not hasattr(self, "detector_names"):
             self._set_detector_names()
-        h_maps_dict, _ = build_Planck_h_maps_dictionnary(
-            det_names=self.detector_names,
+        h_maps_dict, mask_hits = build_Planck_h_maps_dictionnary(
+            det_names=se    lf.detector_names,
             moments_dir=self.path_to_pol_moments,
             detector_set=self.detector_set,
             smax=self.mmax_beam + 2,
@@ -157,6 +158,7 @@ class PlanckDetectorsData:
             detector_weights=detector_weights,
         )
         self.h_maps_dict = h_maps_dict
+        self.mask_hits = mask_hits
 
 
 @dataclass(slots=True)
@@ -327,24 +329,23 @@ def compute_convolved_planck_map(
         mmax_beam=detector_data.mmax_beam,
         shape_pixels_output=(hp.nside2npix(sky_data.nside),),
     )
-    mask_hits = (np.sum(detector_data.h_maps_dict[0],axis=0) >= len(detector_data.detector_names))
-    print(f"Number of pixels with hits: {mask_hits.shape}")
-    if np.min(mask_hits) == 0:
+    if np.min(detector_data.mask_hits) == 0:
         logger.warning(
             "Some pixels have no hits. The output map will be masked accordingly."
         )
     # Generate the mask for the hits
     spin_syst = Spin_maps.from_dictionary(
-        {spin: spin_syst_dict[spin][:,mask_hits != 0] for spin in spin_syst_dict}
+        {spin: spin_syst_dict[spin][:,detector_data.mask_hits] for spin in spin_syst_dict}
     )
+    print(f"Spin systematics maps shape: {spin_syst_dict[0].shape}")
     # spin_syst = Spin_maps.from_dictionary(spin_syst_dict)
 
     empty_sky = transform_array_maps_into_spin_maps(
-        np.zeros((3, mask_hits.shape[0])), n_stokes_output=3
+        np.zeros((3, detector_data.mask_hits.shape[0])), n_stokes_output=3
     )
     output = run_smarties_mapmaking(
         h_n_spin_dict=detector_data.h_maps_dict,
-        mask_hits=mask_hits,
+        mask_hits=detector_data.mask_hits,
         spin_sky_maps=empty_sky,
         spin_systematics_maps=spin_syst,
         lmax=sky_data.lmax,

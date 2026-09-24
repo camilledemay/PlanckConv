@@ -327,7 +327,7 @@ def compute_convolved_planck_map(
         mmax_beam=detector_data.mmax_beam,
         shape_pixels_output=(hp.nside2npix(sky_data.nside),),
     )
-    mask_hits = (np.sum(detector_data.h_maps_dict[0],axis=0) > 0)
+    mask_hits = (np.sum(detector_data.h_maps_dict[0],axis=0) >= len(detector_data.detector_names))
     print(f"Number of pixels with hits: {mask_hits.shape}")
     if np.min(mask_hits) == 0:
         logger.warning(

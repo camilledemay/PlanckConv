@@ -327,14 +327,15 @@ def compute_convolved_planck_map(
         mmax_beam=detector_data.mmax_beam,
         shape_pixels_output=(hp.nside2npix(sky_data.nside),),
     )
-    mask_hits = detector_data.h_maps_dict[0] > 0
+    mask_hits = (np.sum(detector_data.h_maps_dict[0],axis=0) > 0)
+    print(f"Number of pixels with hits: {mask_hits.shape}")
     if np.min(mask_hits) == 0:
         logger.warning(
             "Some pixels have no hits. The output map will be masked accordingly."
         )
     # Generate the mask for the hits
     spin_syst = Spin_maps.from_dictionary(
-        {spin: spin_syst_dict[spin][mask_hits != 0] for spin in spin_syst_dict}
+        {spin: spin_syst_dict[spin][:,mask_hits != 0] for spin in spin_syst_dict}
     )
     # spin_syst = Spin_maps.from_dictionary(spin_syst_dict)
 

@@ -95,7 +95,7 @@ def build_Planck_h_maps_dictionnary(
         hits_arr[idet] *= detector_weights[det[:-1]]  # 100-1a -> 100-1
     total_hits = hits_arr.sum(axis=0)
     mask_hits = (total_hits >0).astype(np.int8)
-    mask_hits = (np.prod(hits_arr, axis=0) > 0  ).astype(np.bool)# only keep pixels with hits for all detectors
+    # mask_hits = (np.prod(hits_arr, axis=0) > 0  ).astype(np.bool)# only keep pixels with hits for all detectors
     # mask_hits = (np.random.rand(mask_hits.shape[0]) > 0.5).astype(np.bool)  #debug
 
     list_hn_spins = np.arange(0, smax + 1)  # up to smax
@@ -203,7 +203,7 @@ def run_smarties_mapmaking(
     final_Q = ((final_spin_maps[-2] + final_spin_maps[2]) / 2).real
     final_U = (1j * (final_spin_maps[-2] - final_spin_maps[2]) / 2).real
 
-    tqu = np.ones((3, mask_hits.size), dtype=float) * hp.UNSEEN
+    tqu = np.zeros((3, mask_hits.size), dtype=float)
 
     if condition_number_mask:
         cond_number = np.linalg.cond(inverse_mapmaking_matrix)

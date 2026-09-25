@@ -62,13 +62,15 @@ def load_hmap_planck_1_det(
     h_maps = np.zeros((smax + 1, hit.shape[0]), dtype=dtype)
 
     logger.info(f"Loaded hits & spins in {time.time() - t1:.2f}s")
-    hitted_pixels=np.where(hit > 0)
+    hitted_pixels = np.where(hit > 0)
     for s in range(smax + 1):
         buf = np.zeros(hit.shape[0], dtype=dtype)
         if s == 0:
             buf = hit.astype(dtype)
         else:
-            buf[hitted_pixels] = (spins[2 * s - 2][hitted_pixels] + 1j * spins[2 * s - 1][hitted_pixels]) / hit[hitted_pixels]
+            buf[hitted_pixels] = (
+                spins[2 * s - 2][hitted_pixels] + 1j * spins[2 * s - 1][hitted_pixels]
+            ) / hit[hitted_pixels]
             if myangle != 0:
                 buf *= np.cos(s * myangle) + 1j * np.sin(s * myangle)
         h_maps[s] = buf
@@ -90,11 +92,14 @@ def build_Planck_h_maps_dictionnary(
         hits_list.append(h_maps[0].real)
         # assert np.all(h_maps[0].real > 0), "h_maps[0] has non-positive values"
     hits_arr = np.array(hits_list)
-    total_hits = hits_arr.sum(axis=0)
 
     for idet, det in enumerate(det_names):
         hits_arr[idet] *= detector_weights[det[:-1]]  # 100-1a -> 100-1
-    mask_hits = (total_hits >0)
+
+    total_hits = hits_arr.sum(axis=0)
+
+    mask_hits = total_hits > 0
+
     # mask_hits = (np.prod(hits_arr, axis=0) > 0  ).astype(np.bool)# only keep pixels with hits for all detectors
     # mask_hits = (np.random.rand(mask_hits.shape[0]) > 0.5).astype(np.bool)  #debug
 
@@ -108,7 +113,9 @@ def build_Planck_h_maps_dictionnary(
         for s in list_hn_spins:
             if s == 0:
                 continue
-            h_n_dict[s][idet] = h_map[s][mask_hits] * hits[mask_hits] / total_hits[mask_hits]
+            h_n_dict[s][idet] = (
+                h_map[s][mask_hits] * hits[mask_hits] / total_hits[mask_hits]
+            )
     # add negative spins
     for s in list_hn_spins:
         if s != 0:

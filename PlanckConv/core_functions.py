@@ -94,7 +94,7 @@ def build_Planck_h_maps_dictionnary(
         hits_arr[idet] *= detector_weights[det[:-1]]  # 100-1a -> 100-1
     total_hits = hits_arr.sum(axis=0)
     mask_hits = (total_hits >0).astype(np.int8)
-    mask_hits = (np.prod(hits_arr, axis=0) > 0  ).astype(np.int8)# only keep pixels with hits for all detectors
+    mask_hits = (np.prod(hits_arr, axis=0) > 0  ).astype(np.bool)# only keep pixels with hits for all detectors
     list_hn_spins = np.arange(0, smax + 1)  # up to smax
     h_n_dict = {
         s: np.zeros((len(det_names), total_hits.size), dtype=dtype)
@@ -105,7 +105,7 @@ def build_Planck_h_maps_dictionnary(
         for s in list_hn_spins:
             if s == 0:
                 continue
-            h_n_dict[s][idet] = h_map[s] * hits / total_hits
+            h_n_dict[s][idet][mask_hits] = h_map[s] * hits / total_hits
     # add negative spins
     for s in list_hn_spins:
         if s != 0:

@@ -90,7 +90,7 @@ def build_Planck_h_maps_dictionnary(
         )
         h_maps_list.append(h_maps)
         hits_list.append(h_maps[0].real)
-        # assert np.all(h_maps[0].real > 0), "h_maps[0] has non-positive values"
+        assert np.all(h_maps[0].real >= 0), "h_maps[0] has negative values"
     hits_arr = np.array(hits_list)
 
     for idet, det in enumerate(det_names):
@@ -100,8 +100,6 @@ def build_Planck_h_maps_dictionnary(
 
     mask_hits = total_hits > 0
 
-    # mask_hits = (np.prod(hits_arr, axis=0) > 0  ).astype(np.bool)# only keep pixels with hits for all detectors
-    # mask_hits = (np.random.rand(mask_hits.shape[0]) > 0.5).astype(np.bool)  #debug
 
     list_hn_spins = np.arange(0, smax + 1)  # up to smax
     h_n_dict = {

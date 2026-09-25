@@ -62,12 +62,13 @@ def load_hmap_planck_1_det(
     h_maps = np.zeros((smax + 1, hit.shape[0]), dtype=dtype)
 
     logger.info(f"Loaded hits & spins in {time.time() - t1:.2f}s")
-
+    hitted_pixels=np.where(hit > 0)
     for s in range(smax + 1):
+        buf = np.zeros(hit.shape[0], dtype=dtype)
         if s == 0:
             buf = hit.astype(dtype)
         else:
-            buf = (spins[2 * s - 2] + 1j * spins[2 * s - 1]) / hit
+            buf[hitted_pixels] = (spins[2 * s - 2][hitted_pixels] + 1j * spins[2 * s - 1][hitted_pixels]) / hit[hitted_pixels]
             if myangle != 0:
                 buf *= np.cos(s * myangle) + 1j * np.sin(s * myangle)
         h_maps[s] = buf
@@ -105,7 +106,7 @@ def build_Planck_h_maps_dictionnary(
         for s in list_hn_spins:
             if s == 0:
                 continue
-            h_n_dict[s][idet][mask_hits] = h_map[s] * hits / total_hits
+            h_n_dict[s][idet] = h_map[s] * hits / total_hits
     # add negative spins
     for s in list_hn_spins:
         if s != 0:

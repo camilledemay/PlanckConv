@@ -1,3 +1,4 @@
+from cmath import log
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -329,6 +330,7 @@ def compute_convolved_planck_map(
         mmax_beam=detector_data.mmax_beam,
         shape_pixels_output=(hp.nside2npix(sky_data.nside),),
     )
+    logger.info("Spin maps generated.")
     if np.min(detector_data.mask_hits) == 0:
         logger.warning(
             "Some pixels have no hits. The output map will be masked accordingly."
@@ -362,6 +364,7 @@ def compute_convolved_planck_map(
         condition_number_mask=condition_number_threshold is not None,
         condition_number_threshold=condition_number_threshold,
     )
+    logger.info("Mapmaking completed.")
     if return_inverse_mapmaking_matrix:
         inverse_mapmaking_matrix = output[1]
         TQU_convolved_map = output[0]

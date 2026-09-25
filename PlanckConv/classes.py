@@ -336,7 +336,6 @@ def compute_convolved_planck_map(
             "Some pixels have no hits. The output map will be masked accordingly."
         )
 
-    print(f"fafd: {detector_data.mask_hits.shape}")
 
     # Generate the mask for the hits
     spin_syst = Spin_maps.from_dictionary(
@@ -345,8 +344,6 @@ def compute_convolved_planck_map(
             for spin in spin_syst_dict
         }
     )
-    print(f"Spin systematics maps shape: {spin_syst[0].shape}")
-    # spin_syst = Spin_maps.from_dictionary(spin_syst_dict)
 
     empty_sky = transform_array_maps_into_spin_maps(
         np.zeros((3, spin_syst[0][0].shape[0])), n_stokes_output=3

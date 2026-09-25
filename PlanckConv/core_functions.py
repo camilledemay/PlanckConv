@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-"""Core functions for Smarties map-making and QuickPol beam matrices."""
-
 import logging
 import os
 import time
@@ -99,7 +96,6 @@ def build_Planck_h_maps_dictionnary(
     total_hits = hits_arr.sum(axis=0)
 
     mask_hits = total_hits > 0
-
 
     list_hn_spins = np.arange(0, smax + 1)  # up to smax
     h_n_dict = {

@@ -1,4 +1,3 @@
-from cmath import log
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -336,11 +335,10 @@ def compute_convolved_planck_map(
             "Some pixels have no hits. The output map will be masked accordingly."
         )
 
-
     # Generate the mask for the hits
     spin_syst = Spin_maps.from_dictionary(
         {
-            spin: spin_syst_dict[spin][:, detector_data.mask_hits ]
+            spin: spin_syst_dict[spin][:, detector_data.mask_hits]
             for spin in spin_syst_dict
         }
     )

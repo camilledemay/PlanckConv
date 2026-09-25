@@ -148,7 +148,7 @@ class PlanckDetectorsData:
         if not hasattr(self, "detector_names"):
             self._set_detector_names()
         h_maps_dict, mask_hits = build_Planck_h_maps_dictionnary(
-            det_names=se    lf.detector_names,
+            det_names=self.detector_names,
             moments_dir=self.path_to_pol_moments,
             detector_set=self.detector_set,
             smax=self.mmax_beam + 2,
@@ -335,7 +335,10 @@ def compute_convolved_planck_map(
         )
     # Generate the mask for the hits
     spin_syst = Spin_maps.from_dictionary(
-        {spin: spin_syst_dict[spin][:,detector_data.mask_hits] for spin in spin_syst_dict}
+        {
+            spin: spin_syst_dict[spin][:, detector_data.mask_hits]
+            for spin in spin_syst_dict
+        }
     )
     print(f"Spin systematics maps shape: {spin_syst_dict[0].shape}")
     # spin_syst = Spin_maps.from_dictionary(spin_syst_dict)

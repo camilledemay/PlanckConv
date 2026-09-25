@@ -344,7 +344,7 @@ def compute_convolved_planck_map(
     # spin_syst = Spin_maps.from_dictionary(spin_syst_dict)
 
     empty_sky = transform_array_maps_into_spin_maps(
-        np.zeros((3, detector_data.mask_hits.shape[0])), n_stokes_output=3
+        np.zeros((3, spin_syst[0][0].shape[0])), n_stokes_output=3
     )
     output = run_smarties_mapmaking(
         h_n_spin_dict=detector_data.h_maps_dict,

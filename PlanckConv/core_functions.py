@@ -96,17 +96,19 @@ def build_Planck_h_maps_dictionnary(
     total_hits = hits_arr.sum(axis=0)
     mask_hits = (total_hits >0).astype(np.int8)
     mask_hits = (np.prod(hits_arr, axis=0) > 0  ).astype(np.bool)# only keep pixels with hits for all detectors
+    # mask_hits = (np.random.rand(mask_hits.shape[0]) > 0.5).astype(np.bool)  #debug
+
     list_hn_spins = np.arange(0, smax + 1)  # up to smax
     h_n_dict = {
-        s: np.zeros((len(det_names), total_hits.size), dtype=dtype)
+        s: np.zeros((len(det_names), np.sum(mask_hits)), dtype=dtype)
         for s in list_hn_spins
     }
     for idet, (hits, h_map) in enumerate(zip(hits_arr, h_maps_list)):
-        h_n_dict[0][idet] = hits / (total_hits)
+        h_n_dict[0][idet] = hits[mask_hits] / (total_hits[mask_hits])
         for s in list_hn_spins:
             if s == 0:
                 continue
-            h_n_dict[s][idet] = h_map[s] * hits / total_hits
+            h_n_dict[s][idet] = h_map[s][mask_hits] * hits[mask_hits] / total_hits[mask_hits]
     # add negative spins
     for s in list_hn_spins:
         if s != 0:
@@ -206,14 +208,16 @@ def run_smarties_mapmaking(
     if condition_number_mask:
         cond_number = np.linalg.cond(inverse_mapmaking_matrix)
         cond_mask = cond_number < condition_number_threshold
-        full_mask = cond_mask & mask_hits.astype(bool)
+        full_mask = cond_mask & mask_hits
 
         logger.info(f"Maximum value of the condition number: {np.max(cond_number)}")
     else:
-        full_mask = mask_hits.astype(bool)
-    tqu[0, full_mask] = final_I[full_mask]
-    tqu[1, full_mask] = final_Q[full_mask]
-    tqu[2, full_mask] = final_U[full_mask]
+        full_mask = mask_hits
+    full_mask_hit_masked = full_mask[mask_hits]
+
+    tqu[0, full_mask] = final_I[full_mask_hit_masked]
+    tqu[1, full_mask] = final_Q[full_mask_hit_masked]
+    tqu[2, full_mask] = final_U[full_mask_hit_masked]
 
     if return_inverse_mapmaking_matrix:
         return tqu, inverse_mapmaking_matrix

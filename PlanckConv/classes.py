@@ -314,7 +314,7 @@ def compute_convolved_planck_map(
     """
 
     assert sky_data.lmax == detector_data.lmax, "The blms and alms lmax do not match"
-    assert sky_data.nside == hp.npix2nside(detector_data.h_maps_dict[0].shape[1]), (
+    assert sky_data.nside == hp.npix2nside(detector_data.mask_hits.shape[0]), (
         "The h_maps and alms nside do not match"
     )
     assert list(sky_data.alms_dict.keys()) == detector_data.detector_names, (
@@ -333,14 +333,17 @@ def compute_convolved_planck_map(
         logger.warning(
             "Some pixels have no hits. The output map will be masked accordingly."
         )
+
+    print(f"fafd: {detector_data.mask_hits.shape}")
+
     # Generate the mask for the hits
     spin_syst = Spin_maps.from_dictionary(
         {
-            spin: spin_syst_dict[spin][:, detector_data.mask_hits]
+            spin: spin_syst_dict[spin][:, detector_data.mask_hits ]
             for spin in spin_syst_dict
         }
     )
-    print(f"Spin systematics maps shape: {spin_syst_dict[0].shape}")
+    print(f"Spin systematics maps shape: {spin_syst[0].shape}")
     # spin_syst = Spin_maps.from_dictionary(spin_syst_dict)
 
     empty_sky = transform_array_maps_into_spin_maps(

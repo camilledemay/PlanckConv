@@ -1,3 +1,4 @@
+from numba.core.cgutils import is_pointer
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -74,6 +75,8 @@ class PlanckDetectorsData:
     rho_mapmaking: Any = field(init=False)
     rho_blm: Any = field(init=False)
 
+    horns: Any = field(init=False)
+    is_polarized: Any = field(init=False)
     pol_angles_rad: Any = field(init=False)
     blms_dict: Any = field(init=False)
     h_maps_dict: Any = field(init=False)
@@ -84,6 +87,8 @@ class PlanckDetectorsData:
         self._set_detector_names()
         if self.detector_names == -1:
             raise ValueError("Invalid detector set")
+        self.is_polarized = [float(det[-1] in "abMS") for det in self.detector_names]
+        self.horns = [det[:-1] if det[-1] in "abMS" else det for det in self.detector_names]
         self._set_polarisation_efficiencies()
         self._set_pol_angles_rad()
 
@@ -99,7 +104,7 @@ class PlanckDetectorsData:
                 for det in self.detector_names
             ]
         elif self.blm_polar_efficiency == "Ideal":
-            rho_blm = [1 for det in self.detector_names]
+            rho_blm =self.is_polarized  # 1 for polarized detectors, 0 for unpolarized
         else:
             raise ValueError(
                 f"Unknown polarisation efficiency model: {self.blm_polar_efficiency}"
@@ -111,7 +116,7 @@ class PlanckDetectorsData:
                 for det in self.detector_names
             ]
         elif self.mapmaking_polar_efficiency == "Ideal":
-            rho_mapmaking = [1 for det in self.detector_names]
+            rho_mapmaking = self.is_polarized  # 1 for polarized detectors, 0 for unpolarized
         else:
             raise ValueError(
                 f"Unknown polarisation efficiency model: {self.mapmaking_polar_efficiency}"
@@ -149,6 +154,7 @@ class PlanckDetectorsData:
             self._set_detector_names()
         h_maps_dict, mask_hits = build_Planck_h_maps_dictionnary(
             det_names=self.detector_names,
+            horns=self.horns,
             moments_dir=self.path_to_pol_moments,
             detector_set=self.detector_set,
             smax=self.mmax_beam + 2,

@@ -75,7 +75,7 @@ def load_hmap_planck_1_det(
 
 
 def build_Planck_h_maps_dictionnary(
-    det_names, moments_dir, detector_set, smax, spin_ref, RIMO, dtype, detector_weights
+    det_names,horns, moments_dir, detector_set, smax, spin_ref, RIMO, dtype, detector_weights
 ):
     """Load all detectors and build h_n_spin_dict up to a spin smax."""
     h_maps_list = []
@@ -90,8 +90,9 @@ def build_Planck_h_maps_dictionnary(
         assert np.all(h_maps[0].real >= 0), "h_maps[0] has negative values"
     hits_arr = np.array(hits_list)
 
-    for idet, det in enumerate(det_names):
-        hits_arr[idet] *= detector_weights[det[:-1]]  # 100-1a -> 100-1
+    for idet, horn in enumerate(horns):
+
+        hits_arr[idet] *= detector_weights[horn]
 
     total_hits = hits_arr.sum(axis=0)
 

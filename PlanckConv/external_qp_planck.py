@@ -449,11 +449,9 @@ def get_blms_fits(fitsfile, lmax=None, mmax=None, isbalm=True, renorm=True):
         Cim = dataC.field(2)
         polbeam_in = True
         ndb = 3
-    except Exception:
+    except IndexError:
         logger.warning(
-            "#ff0000  ",
-            "WARNING: Polarized Blm not found in %s" % (fitsfile),
-            "\x1b[0m",
+            f"WARNING: Polarized Blm not found in {fitsfile}",
         )
     ls = np.array(np.floor(np.sqrt(Tix - 1)), dtype=np.int64)
     ms = Tix - ls * ls - ls - 1

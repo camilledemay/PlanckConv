@@ -1,4 +1,3 @@
-from numba.core.cgutils import is_pointer
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -88,7 +87,9 @@ class PlanckDetectorsData:
         if self.detector_names == -1:
             raise ValueError("Invalid detector set")
         self.is_polarized = [float(det[-1] in "abMS") for det in self.detector_names]
-        self.horns = [det[:-1] if det[-1] in "abMS" else det for det in self.detector_names]
+        self.horns = [
+            det[:-1] if det[-1] in "abMS" else det for det in self.detector_names
+        ]
         self._set_polarisation_efficiencies()
         self._set_pol_angles_rad()
 
@@ -104,7 +105,7 @@ class PlanckDetectorsData:
                 for det in self.detector_names
             ]
         elif self.blm_polar_efficiency == "Ideal":
-            rho_blm =self.is_polarized  # 1 for polarized detectors, 0 for unpolarized
+            rho_blm = self.is_polarized  # 1 for polarized detectors, 0 for unpolarized
         else:
             raise ValueError(
                 f"Unknown polarisation efficiency model: {self.blm_polar_efficiency}"
@@ -116,7 +117,9 @@ class PlanckDetectorsData:
                 for det in self.detector_names
             ]
         elif self.mapmaking_polar_efficiency == "Ideal":
-            rho_mapmaking = self.is_polarized  # 1 for polarized detectors, 0 for unpolarized
+            rho_mapmaking = (
+                self.is_polarized
+            )  # 1 for polarized detectors, 0 for unpolarized
         else:
             raise ValueError(
                 f"Unknown polarisation efficiency model: {self.mapmaking_polar_efficiency}"

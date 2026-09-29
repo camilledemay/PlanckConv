@@ -339,12 +339,8 @@ def compute_convolved_planck_map(
         mmax_beam=detector_data.mmax_beam,
         shape_pixels_output=(hp.nside2npix(sky_data.nside),),
     )
-    logger.info(f"Spin maps generated in {time.time() - t_start_spin_maps} seconds.")
+    logger.info(f"Spin maps generated in {time.time() - t_start_spin_maps:.2f} s.")
 
-    if np.min(detector_data.mask_hits) == 0:
-        logger.warning(
-            "Some pixels have no hits. The output map will be masked accordingly."
-        )
 
     # Generate the mask for the hits
     spin_syst = Spin_maps.from_dictionary(
@@ -353,10 +349,16 @@ def compute_convolved_planck_map(
             for spin in spin_syst_dict
         }
     )
+    if np.min(detector_data.mask_hits) == 0:
+        logger.warning(
+            "Some pixels have no hits. The output map will be masked accordingly."
+        )
+
 
     empty_sky = transform_array_maps_into_spin_maps(
         np.zeros((3, spin_syst[0][0].shape[0])), n_stokes_output=3
     )
+    t_start_mm = time.time()
     output = run_smarties_mapmaking(
         h_n_spin_dict=detector_data.h_maps_dict,
         mask_hits=detector_data.mask_hits,
@@ -370,7 +372,7 @@ def compute_convolved_planck_map(
         condition_number_mask=condition_number_threshold is not None,
         condition_number_threshold=condition_number_threshold,
     )
-    logger.info("Mapmaking completed.")
+    logger.info(f"Mapmaking completed in {time.time()-t_start_mm:2f} s.")
     if return_inverse_mapmaking_matrix:
         inverse_mapmaking_matrix = output[1]
         TQU_convolved_map = output[0]

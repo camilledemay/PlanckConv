@@ -1,4 +1,5 @@
 import logging
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -329,7 +330,7 @@ def compute_convolved_planck_map(
     assert list(sky_data.alms_dict.keys()) == detector_data.detector_names, (
         "The alms_dict keys do not match the detector names"
     )
-
+    t_start_spin_maps = time.time()
     spin_syst_dict = get_beam_convolution_spins_maps(
         alms=sky_data.alms_dict,
         blms=detector_data.blms_dict,
@@ -338,7 +339,8 @@ def compute_convolved_planck_map(
         mmax_beam=detector_data.mmax_beam,
         shape_pixels_output=(hp.nside2npix(sky_data.nside),),
     )
-    logger.info("Spin maps generated.")
+    logger.info(f"Spin maps generated in {time.time() - t_start_spin_maps} seconds.")
+
     if np.min(detector_data.mask_hits) == 0:
         logger.warning(
             "Some pixels have no hits. The output map will be masked accordingly."

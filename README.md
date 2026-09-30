@@ -8,7 +8,7 @@ and polmoments (aka h-maps), converts them into the format and conventions used
 by Smarties, and calls Smarties to perform the beam convolution.
 
 The underlying formalism is described in [Demay et al., 2026]() and
-[Morshed et al., in prep.](). Practical usage is demonstrated in the
+[Morshed et al., in prep.](). For practical usage you can refer to the
 [example notebook](example_notebook.ipynb).
 
 ## Inputs

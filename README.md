@@ -33,4 +33,5 @@ Alternatively, if you use uv you can run
 uv add "smarties4planck @ git+https://github.com/camilledemay/smarties4planck"
 ```
 
-You may want to compile ducc from source to speed-up the alm2map transforms, see  https://gitlab.mpcdf.mpg.de/mtr/ducc
+
+This code relies on [DUCC](https://gitlab.mpcdf.mpg.de/mtr/ducc) to compute harmonic transforms. For best performance it is recommended to compile DUCC from source, optimizing for the specific CPU on the system.

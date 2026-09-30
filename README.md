@@ -1,16 +1,26 @@
-This code enables efficient simulation of beam-convolved Planck maps from arbitrary input skies,it takes the following inputs:
+# smarties4planck
 
-- harmonic coefficients (`alms`)
-- Planck beam harmonic coefficients (`blms`) 
-- Planck polmoments
+Efficient simulation of beam-convolved Planck maps from arbitrary input skies.
 
-The polmoments and `blms` are available in NERSC:  `/global/cfs/cdirs/cmb/data/planck2020/npipe/aux`
+`smarties4planck` is a high-level wrapper around the
+[Smarties](https://github.com/simonsobs/smarties) package. It reads Planck beams
+and polmoments (aka h-maps), converts them into the format
+and conventions used by Smarties, and calls Smarties to perform the beam
+convolution.
 
+The underlying formalism is described in [Paper I]() and [Paper II]()
+(links TBD). Practical usage is demonstrated in the
+[example notebook](example_notebook.ipynb.ipynb).
 
-This is a wrapper around the Smarties package ([https://github.com/simonsobs/smarties](https://github.com/simonsobs/smarties)), the underlying formalism is described in [] and here [].
+## Inputs
 
-For practical usage, you can refer to the Jupyter notebook.
+The code takes the following inputs:
 
+- `alms`, spherical harmonic coefficients of the input sky.
+- `blms`, Planck beam harmonic coefficients.
+- Planck polmoments.
+
+The polmoments and `blms` are available in NERSC: /global/cfs/cdirs/cmb/data/planck2020/npipe/aux/beams and /aux/polmoments respectively.
 
 # Installation
 

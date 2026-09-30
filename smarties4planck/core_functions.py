@@ -189,12 +189,12 @@ def run_smarties_mapmaking(
 ):
     """Compute final T, Q, U maps using FrameworkSystematics."""
     compute_polarization = np.sum(polarized_bolometers) >= 2
-    if compute_polarization>= 2:
+    if compute_polarization:
         syst = FrameworkSystematics(
             map_shape=(1, mask_hits.size), nstokes=3, lmax=lmax, list_spin_output=[0, -2, 2]
         )
     else:
-        logger.info("Not enough polarized bolometers, only computing temperature map")
+        logger.info(f"Not enough polarized bolometersP: {np.sum(polarized_bolometers)}, only computing temperature map")
         syst = FrameworkSystematics(
             map_shape=(1, mask_hits.size), nstokes=1, lmax=lmax, list_spin_output=[0]
         )

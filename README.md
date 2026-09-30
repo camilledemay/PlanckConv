@@ -7,7 +7,7 @@ This code enables efficient simulation of beam-convolved Planck maps from arbitr
 The polmoments and `blms` are available in NERSC:  `/global/cfs/cdirs/cmb/data/planck2020/npipe/aux`
 
 
-This is a wrapper around the Smarties package ([https://github.com/simonsobs/smarties](https://github.com/simonsobs/smarties)), the underlying formalism is described here [] and here [].
+This is a wrapper around the Smarties package ([https://github.com/simonsobs/smarties](https://github.com/simonsobs/smarties)), the underlying formalism is described in [] and here [].
 
 For practical usage, you can refer to the Jupyter notebook.
 
@@ -20,7 +20,7 @@ pip install path\to\repo\dir
 ``` 
 Alternatively, if you use uv you can run 
 ```
-uv add "PlanckConv @ git+https://github.com/camilledemay/PlanckConv"
+uv add "PlanckConv @ git+https://github.com/camilledemay/smarties4planck"
 ```
 
 You may want to compile ducc from source to speed-up the map2alm transforms, see  https://gitlab.mpcdf.mpg.de/mtr/ducc

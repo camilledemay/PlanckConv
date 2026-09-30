@@ -8,7 +8,7 @@ from smarties.hn import Spin_maps
 from smarties.mapmaking import FrameworkSystematics
 from smarties.utils.harmonics import convert_alm_spin_to_plusminus
 
-from PlanckConv.external_qp_planck import (
+from smarties4planck.external_qp_planck import (
     get_angles,
     get_blms_fits,
 )

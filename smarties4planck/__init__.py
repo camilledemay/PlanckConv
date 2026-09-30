@@ -1,11 +1,11 @@
 import logging
 import os
 
-from PlanckConv.classes import *
-from PlanckConv.core_functions import *
-from PlanckConv.external_qp_planck import *
+from smarties4planck.classes import *
+from smarties4planck.core_functions import *
+from smarties4planck.external_qp_planck import *
 
-_pkg = logging.getLogger("PlanckConv")
+_pkg = logging.getLogger("smarties4planck")
 
 if not logging.getLogger().handlers:
     handler = logging.StreamHandler()
@@ -16,4 +16,4 @@ if not logging.getLogger().handlers:
     root.addHandler(handler)
 
 
-_pkg.setLevel(os.environ.get("PLANCKCONV_LOGLEVEL", "INFO").upper())
+_pkg.setLevel(os.environ.get("smarties4planck_LOGLEVEL", "INFO").upper())

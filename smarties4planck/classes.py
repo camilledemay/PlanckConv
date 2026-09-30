@@ -10,13 +10,13 @@ from smarties.hn import Spin_maps
 from smarties.sky.convolution import get_beam_convolution_spins_maps
 from smarties.utils.tools import transform_array_maps_into_spin_maps
 
-from PlanckConv.core_functions import (
+from smarties4planck.core_functions import (
     build_Planck_h_maps_dictionnary,
     generate_cmb_alms,
     get_Planck_det_blms,
     run_smarties_mapmaking,
 )
-from PlanckConv.external_qp_planck import (
+from smarties4planck.external_qp_planck import (
     detector_weights,
     get_angles,
     list_planck,

@@ -367,6 +367,7 @@ def compute_convolved_planck_map(
         lmax=sky_data.lmax,
         pol_ang_rad=detector_data.pol_angles_rad,
         pol_efficiency=detector_data.rho_mapmaking,
+        polarized_bolometers=detector_data.is_polarized,
         inverse_mapmaking_matrix=inverse_mapmaking_matrix,
         return_inverse_mapmaking_matrix=return_inverse_mapmaking_matrix,
         condition_number_mask=condition_number_threshold is not None,

@@ -75,7 +75,15 @@ def load_hmap_planck_1_det(
 
 
 def build_Planck_h_maps_dictionnary(
-    det_names,horns, moments_dir, detector_set, smax, spin_ref, RIMO, dtype, detector_weights
+    det_names,
+    horns,
+    moments_dir,
+    detector_set,
+    smax,
+    spin_ref,
+    RIMO,
+    dtype,
+    detector_weights,
 ):
     """Load all detectors and build h_n_spin_dict up to a spin smax."""
     h_maps_list = []
@@ -91,7 +99,6 @@ def build_Planck_h_maps_dictionnary(
     hits_arr = np.array(hits_list)
 
     for idet, horn in enumerate(horns):
-
         hits_arr[idet] *= detector_weights[horn]
 
     total_hits = hits_arr.sum(axis=0)
@@ -174,15 +181,23 @@ def run_smarties_mapmaking(
     lmax,
     pol_ang_rad,
     pol_efficiency,
+    polarized_bolometers,
     inverse_mapmaking_matrix,
     return_inverse_mapmaking_matrix,
     condition_number_mask,
     condition_number_threshold=10,
 ):
     """Compute final T, Q, U maps using FrameworkSystematics."""
-    syst = FrameworkSystematics(
-        map_shape=(1, mask_hits.size), nstokes=3, lmax=lmax, list_spin_output=[0, -2, 2]
-    )
+    compute_polarization = np.sum(polarized_bolometers) >= 2
+    if compute_polarization>= 2:
+        syst = FrameworkSystematics(
+            map_shape=(1, mask_hits.size), nstokes=3, lmax=lmax, list_spin_output=[0, -2, 2]
+        )
+    else:
+        logger.info("Not enough polarized bolometers, only computing temperature map")
+        syst = FrameworkSystematics(
+            map_shape=(1, mask_hits.size), nstokes=1, lmax=lmax, list_spin_output=[0]
+        )
     out = syst.compute_total_maps(
         mask_hits,
         h_n_spin_dict,
@@ -202,10 +217,11 @@ def run_smarties_mapmaking(
         final_spin_maps = out
 
     final_I = final_spin_maps[0].real
-    final_Q = ((final_spin_maps[-2] + final_spin_maps[2]) / 2).real
-    final_U = (1j * (final_spin_maps[-2] - final_spin_maps[2]) / 2).real
+    if compute_polarization:
+        final_Q = ((final_spin_maps[-2] + final_spin_maps[2]) / 2).real
+        final_U = (1j * (final_spin_maps[-2] - final_spin_maps[2]) / 2).real
 
-    tqu = np.zeros((3, mask_hits.size), dtype=float)
+    tqu = np.zeros((3 if compute_polarization else 1, mask_hits.size), dtype=float)
 
     if condition_number_mask:
         cond_number = np.linalg.cond(inverse_mapmaking_matrix)
@@ -218,8 +234,9 @@ def run_smarties_mapmaking(
     full_mask_hit_masked = full_mask[mask_hits]
 
     tqu[0, full_mask] = final_I[full_mask_hit_masked]
-    tqu[1, full_mask] = final_Q[full_mask_hit_masked]
-    tqu[2, full_mask] = final_U[full_mask_hit_masked]
+    if compute_polarization:
+        tqu[1, full_mask] = final_Q[full_mask_hit_masked]
+        tqu[2, full_mask] = final_U[full_mask_hit_masked]
 
     if return_inverse_mapmaking_matrix:
         return tqu, inverse_mapmaking_matrix

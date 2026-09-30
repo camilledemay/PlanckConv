@@ -34,4 +34,4 @@ uv add "smarties4planck @ git+https://github.com/camilledemay/smarties4planck"
 ```
 
 
-This code relies on [DUCC](https://gitlab.mpcdf.mpg.de/mtr/ducc) to compute harmonic transforms. For best performance it is recommended to compile DUCC from source, optimizing for the specific CPU on the system.
+This code relies on [DUCC](https://gitlab.mpcdf.mpg.de/mtr/ducc) to compute harmonic transforms. As detailed in DUCC documentation, for best performance, it is recommended to compile it from source.

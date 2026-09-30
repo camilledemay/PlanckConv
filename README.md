@@ -33,4 +33,4 @@ Alternatively, if you use uv you can run
 uv add "smarties4planck @ git+https://github.com/camilledemay/smarties4planck"
 ```
 
-You may want to compile ducc from source to speed-up the map2alm transforms, see  https://gitlab.mpcdf.mpg.de/mtr/ducc
+You may want to compile ducc from source to speed-up the alm2map transforms, see  https://gitlab.mpcdf.mpg.de/mtr/ducc

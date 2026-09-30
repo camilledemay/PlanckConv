@@ -1,8 +1,8 @@
-# smarties4planck
+# Smarties4Planck
 
 Efficient simulation of beam-convolved Planck maps from arbitrary input skies.
 
-`smarties4planck` is a high-level wrapper around the
+Smarties4Planck is a high-level wrapper around the
 [Smarties](https://github.com/simonsobs/smarties) package. It reads Planck beams
 and polmoments (aka h-maps), converts them into the format
 and conventions used by Smarties, and calls Smarties to perform the beam

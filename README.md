@@ -15,8 +15,8 @@ The underlying formalism is described in [Demay et al., 2026]() and
 
 The code takes the following inputs:
 
-- `alms` — spherical harmonic coefficients of the input sky.
-- `blms` — Planck beam harmonic coefficients.
+- `alms`, spherical harmonic coefficients of the input sky.
+- `blms`, Planck beam harmonic coefficients.
 - Planck polmoments.
 
 The polmoments and `blms` are available at NERSC:

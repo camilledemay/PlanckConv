@@ -31,10 +31,8 @@ def rotate_alms(alms, rot_angle_rad, lmax, mmax):
 
 # ----------------------------------------------------------------------
 # Load Planck hit‑map moments and build spin maps
-def load_hmap_planck_1_det(
-    path_to_moments, det_name, detector_set, smax, spin_ref, RIMO, dtype=np.complex128
-):
-    """Load the Planck h-maps of one detector and rotate it so that they follow the same conventiona as smarties."""
+def _get_hit_mom_files(path_to_moments, det_name, detector_set):
+    """Return the hit and moment FITS file paths of a single detector."""
     if detector_set in ["30A", "30B", "44A", "44B"]:
         # These frequencies could not be split by detector
         subset = detector_set[-1]
@@ -45,31 +43,55 @@ def load_hmap_planck_1_det(
     else:
         hitfile = os.path.join(path_to_moments, f"polmoments_{det_name}_hits.fits")
         momfile = os.path.join(path_to_moments, f"polmoments_{det_name}.fits")
+    return hitfile, momfile
 
+
+def _get_myangle(spin_ref, RIMO, det_name):
+    """Rotation angle so that h-maps of the same detector pair follow the same convention as smarties."""
     if spin_ref == "Pxx":
-        myangle = -get_angles(RIMO, [det_name], ref="Dxx")[
+        return -get_angles(RIMO, [det_name], ref="Dxx")[
             0
         ]  # rotation so that h-maps of the same det pair are the same
-    else:
-        myangle = 0
+    return 0
+
+
+def load_hits_planck_1_det(path_to_moments, det_name, detector_set, dtype=np.float64):
+    """Load the Planck hit map of a single detector.
+
+    TODO: remove the dtype = np.float64 when smarties is patched for single precsion
+    """
+    hitfile, _ = _get_hit_mom_files(path_to_moments, det_name, detector_set)
+    return hp.read_map(hitfile, dtype=dtype)
+
+
+def load_hmap_planck_1_det_masked(
+    path_to_moments,
+    det_name,
+    detector_set,
+    smax,
+    myangle,
+    hit,
+    mask_hits,
+    dtype=np.complex128,
+):
+    """Load the Planck h-maps of one detector, restricted to the ``mask_hits`` pixels."""
+    _, momfile = _get_hit_mom_files(path_to_moments, det_name, detector_set)
 
     t1 = time.time()
-    hit = hp.read_map(hitfile)
-    spins = hp.read_map(momfile, None)
-    h_maps = np.zeros((smax + 1, hit.shape[0]), dtype=dtype)
+    spins = hp.read_map(momfile, None, dtype=np.float32)
+    logger.info(f"Loaded spins in {time.time() - t1:.2f}s")
 
-    logger.info(f"Loaded hits & spins in {time.time() - t1:.2f}s")
-    hitted_pixels = np.where(hit > 0)
-    for s in range(smax + 1):
-        buf = np.zeros(hit.shape[0], dtype=dtype)
-        if s == 0:
-            buf = hit.astype(dtype)
-        else:
-            buf[hitted_pixels] = (
-                spins[2 * s - 2][hitted_pixels] + 1j * spins[2 * s - 1][hitted_pixels]
-            ) / hit[hitted_pixels]
-            if myangle != 0:
-                buf *= np.cos(s * myangle) + 1j * np.sin(s * myangle)
+    hit_masked = hit[mask_hits]
+    hitted_pixels = hit_masked > 0
+    h_maps = np.zeros((smax + 1, hit_masked.shape[0]), dtype=dtype)
+    for s in range(1, smax + 1):
+        buf = np.zeros(hit_masked.shape[0], dtype=dtype)
+        buf[hitted_pixels] = (
+            spins[2 * s - 2][mask_hits][hitted_pixels]
+            + 1j * spins[2 * s - 1][mask_hits][hitted_pixels]
+        ) / hit_masked[hitted_pixels]
+        if myangle != 0:
+            buf *= np.cos(s * myangle) + 1j * np.sin(s * myangle)
         h_maps[s] = buf
     return h_maps
 
@@ -85,39 +107,55 @@ def build_Planck_h_maps_dictionnary(
     dtype,
     detector_weights,
 ):
-    """Load all detectors and build h_n_spin_dict up to a spin smax."""
-    h_maps_list = []
-    hits_list = []
-    for det in det_names:
-        logger.info(f"Loading h-maps of detector {det}")
-        h_maps = load_hmap_planck_1_det(
-            moments_dir, det, detector_set, smax, spin_ref, RIMO, dtype
-        )
-        h_maps_list.append(h_maps)
-        hits_list.append(h_maps[0].real)
-        assert np.all(h_maps[0].real >= 0), "h_maps[0] has negative values"
-    hits_arr = np.array(hits_list)
+    """Load all detectors and build h_n_spin_dict up to a spin smax.
 
-    for idet, horn in enumerate(horns):
-        hits_arr[idet] *= detector_weights[horn]
+    Hits are read first to define the observed ``mask_hits`` pixels and the
+    normalisation. The moments of each detector are then loaded and directly
+    reduced to the masked h_n samples, so that no full-sky per-detector h-map
+    is ever materialised.
+    """
+    t1 = time.time()
+    hits = np.array(
+        [
+            load_hits_planck_1_det(moments_dir, det, detector_set, dtype=np.float64)
+            for det in det_names
+        ]
+    )
+    logger.info(f"Loaded hits in {time.time() - t1:.2f}s")
+    assert np.all(hits >= 0), "hit maps have negative values"
 
-    total_hits = hits_arr.sum(axis=0)
-
+    weights = np.array([detector_weights[horn] for horn in horns], dtype=np.float64)
+    total_hits = np.einsum("d,dp->p", weights, hits)
     mask_hits = total_hits > 0
 
     list_hn_spins = np.arange(0, smax + 1)  # up to smax
+    n_masked = int(np.sum(mask_hits))
+    # The spin-0 map is the hit normalisation and smarties asserts it sums to 1
+    # to within 1e-14, so it is always kept in double precision. The other spins
+    # use the configured `dtype`.
     h_n_dict = {
-        s: np.zeros((len(det_names), np.sum(mask_hits)), dtype=dtype)
+        s: np.zeros(
+            (len(det_names), n_masked),
+            dtype=np.complex128 if s == 0 else dtype,
+        )
         for s in list_hn_spins
     }
-    for idet, (hits, h_map) in enumerate(zip(hits_arr, h_maps_list)):
-        h_n_dict[0][idet] = hits[mask_hits] / (total_hits[mask_hits])
+    total_hits_masked = total_hits[mask_hits]
+
+    for idet, det in enumerate(det_names):
+        logger.info(f"Loading h-maps of detector {det}")
+        hit = hits[idet]
+        weighted_masked = (hit * weights[idet])[mask_hits]
+        myangle = _get_myangle(spin_ref, RIMO, det)
+        h_maps = load_hmap_planck_1_det_masked(
+            moments_dir, det, detector_set, smax, myangle, hit, mask_hits, dtype
+        )
+        h_n_dict[0][idet] = weighted_masked / total_hits_masked
         for s in list_hn_spins:
             if s == 0:
                 continue
-            h_n_dict[s][idet] = (
-                h_map[s][mask_hits] * hits[mask_hits] / total_hits[mask_hits]
-            )
+            h_n_dict[s][idet] = h_maps[s] * weighted_masked / total_hits_masked
+    del h_maps
     # add negative spins
     for s in list_hn_spins:
         if s != 0:
@@ -137,6 +175,7 @@ def generate_cmb_alms(
     nside,
     lmax,
     apply_pixel_window=False,
+    dtype=None,
 ):
     """Generate CMB alms from a Cl"""
     np.random.seed(seed_cmb)
@@ -158,6 +197,8 @@ def generate_cmb_alms(
         alms[2] *= 0
     if apply_pixel_window:
         apply_pixwin(alms, nside, lmax)
+    if dtype is not None:
+        alms = alms.astype(dtype, copy=False)
     alms_dict = {}
     for det in det_names:
         alms_dict[det] = alms

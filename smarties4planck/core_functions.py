@@ -104,7 +104,7 @@ def build_Planck_h_maps_dictionnary(
     smax,
     spin_ref,
     RIMO,
-    dtype,
+    single_precision,
     detector_weights,
 ):
     """Load all detectors and build h_n_spin_dict up to a spin smax.
@@ -132,7 +132,8 @@ def build_Planck_h_maps_dictionnary(
     n_masked = int(np.sum(mask_hits))
     # The spin-0 map is the hit normalisation and smarties asserts it sums to 1
     # to within 1e-14, so it is always kept in double precision. The other spins
-    # use the configured `dtype`.
+    # follow `single_precision`.
+    dtype = np.complex64 if single_precision else np.complex128
     h_n_dict = {
         s: np.zeros(
             (len(det_names), n_masked),
@@ -175,7 +176,6 @@ def generate_cmb_alms(
     nside,
     lmax,
     apply_pixel_window=False,
-    dtype=None,
 ):
     """Generate CMB alms from a Cl"""
     np.random.seed(seed_cmb)
@@ -197,8 +197,6 @@ def generate_cmb_alms(
         alms[2] *= 0
     if apply_pixel_window:
         apply_pixwin(alms, nside, lmax)
-    if dtype is not None:
-        alms = alms.astype(dtype, copy=False)
     alms_dict = {}
     for det in det_names:
         alms_dict[det] = alms

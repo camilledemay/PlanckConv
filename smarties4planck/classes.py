@@ -54,10 +54,11 @@ class PlanckDetectorsData:
         Polarization-efficiency model for mapmaking.
     detector_subset : int | None, optional
         Optional detector subset selector.
-    dtype : dtype, optional
-        Precision used to store the loaded h_n maps. The spin-0 map is always
-        kept at complex128 because smarties asserts its normalisation to 1e-14.
-        Default is ``np.complex64``.
+    single_precision : bool, optional
+        If True (default) the loaded h_n maps of spins >= 2 are stored as
+        complex64, matching the single-precision NERSC polmoments. The spin-0
+        map always stays complex128 because smarties asserts its normalisation
+        to 1e-14.
     """
 
     detector_set: str
@@ -72,7 +73,7 @@ class PlanckDetectorsData:
     mapmaking_polar_efficiency: str
 
     detector_subset: int | None = None
-    dtype: Any = np.complex64
+    single_precision: bool = True
 
     # Dynamic attributes initialized later
     rimo: Any = field(init=False)
@@ -158,7 +159,9 @@ class PlanckDetectorsData:
     def set_h_maps_dict(self, h_maps_dict):
         self.h_maps_dict = h_maps_dict
 
-    def fill_h_maps_dict(self):
+    def fill_h_maps_dict(self, single_precision: bool | None = None):
+        if single_precision is not None:
+            self.single_precision = single_precision
         h_maps_dict, mask_hits = build_Planck_h_maps_dictionnary(
             det_names=self.detector_names,
             horns=self.horns,
@@ -167,7 +170,7 @@ class PlanckDetectorsData:
             smax=self.mmax_beam + 2,
             spin_ref=self.ref_frame_polmoments,
             RIMO=self.rimo,
-            dtype=self.dtype,
+            single_precision=self.single_precision,
             detector_weights=detector_weights,
         )
         self.h_maps_dict = h_maps_dict
@@ -184,15 +187,16 @@ class SkyData:
         HEALPix resolution of the sky maps.
     lmax : int
         Maximum multipole used in harmonic space.
-    dtype : dtype, optional
-        Precision the generated alms are cast to. Default is
-        ``np.complex64`` to match the single-precision Planck h-maps
 
+    Notes
+    -----
+    The alms are always stored as complex128. healpy's ``alm2cl`` requires
+    double precision and is commonly called on ``alms_dict`` by user code, so
+    the alms precision is not exposed as a switch.
     """
 
     nside: int
     lmax: int
-    dtype: Any = np.complex64
 
     alms_dict: Any = field(default_factory=dict)
 
@@ -219,6 +223,7 @@ class SkyData:
         pol : bool, optional
             Whether to generate polarized alms.
         """
+
         alms_dict = generate_cmb_alms(
             det_names=detector_names,
             path_to_cl=path_to_cl,
@@ -227,7 +232,6 @@ class SkyData:
             seed_cmb=seed_cmb,
             apply_pixel_window=apply_pixel_window,
             polarized=pol,
-            dtype=self.dtype,
         )
         self.alms_dict = alms_dict
 
@@ -330,11 +334,6 @@ def compute_convolved_planck_map(
         Whether to return the inverse mapmaking matrix.
     condition_number_threshold : float | None, optional
         Threshold used to mask ill-conditioned pixels.
-    release_detector_inputs : bool, optional
-        If True, drop the references to the detector beams and h-maps as soon as
-        they are consumed, releasing a large amount of memory. Leave it False if
-        you intend to reuse ``detector_data`` for another mapmaking call (for
-        example reusing the same inverse mapmaking matrix for other skies).
     """
 
     assert sky_data.lmax == detector_data.lmax, "The blms and alms lmax do not match"
@@ -344,13 +343,6 @@ def compute_convolved_planck_map(
     assert list(sky_data.alms_dict.keys()) == detector_data.detector_names, (
         "The alms_dict keys do not match the detector names"
     )
-    if (sky_data.dtype) != (detector_data.dtype):
-        logger.warning(
-            "SkyData dtype %s and PlanckDetectorsData dtype %s have mismatched "
-            "precision; arrays will be upcast to the higher precision.",
-            np.dtype(sky_data.dtype).name,
-            np.dtype(detector_data.dtype).name,
-        )
     if np.min(detector_data.mask_hits) == 0:
         logger.warning(
             "Some pixels have no hits. The output map will be masked accordingly."
